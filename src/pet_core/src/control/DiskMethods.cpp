@@ -155,7 +155,11 @@ std::string linesOf( std::uint8_t lines )
 }
 
 /// DriveTiming's fields as the protocol names them.
-constexpr std::array<std::pair<std::string_view, std::uint64_t machine::DriveTiming::*>, 10> TIMING_FIELDS{ {
+/// A field of DriveTiming. Spelt by decltype: MSVC does not parse a pointer to
+/// member written out as a template argument.
+using TimingField = decltype( &machine::DriveTiming::reaction );
+
+constexpr std::array<std::pair<std::string_view, TimingField>, 10> TIMING_FIELDS{ {
     { "atn_acknowledge", &machine::DriveTiming::atnAcknowledge },
     { "reaction", &machine::DriveTiming::reaction },
     { "command_byte", &machine::DriveTiming::commandByte },

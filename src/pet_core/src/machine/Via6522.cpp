@@ -213,7 +213,7 @@ void Via6522::signal( Line line, bool high, Clock now )
   switch ( line )
   {
   case Line::CA1:
-    if ( ( high ? 1U : 0U ) == ( mVia[PCR] & PCR_CA1_CONTROL ) )
+    if ( ( high ? 1U : 0U ) == static_cast<unsigned>( mVia[PCR] & PCR_CA1_CONTROL ) )
     {
       if ( isCa2ToggleMode() && !mCa2OutState )
       {
