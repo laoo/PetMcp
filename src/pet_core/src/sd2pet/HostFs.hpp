@@ -1,3 +1,7 @@
+// Copyright (C) 2007-2018 Ingo Korb <ingo@akana.de>, as NODISKEMU (a fork of sd2iec)
+// carries it; ASCII/PET conversion Copyright (C) 2008 Jim Brain <brain@jbrain.com>.
+// GPL-2.0. Ported to C++ for PetMcp, 2026 (THIRD_PARTY.md).
+
 #pragma once
 
 // The SD card, as a host directory: the part of FatFs (NODISKEMU's src/ff.h at

@@ -1,3 +1,6 @@
+// Ported from VICE's src/parallel/parallel.c and the PET's port glue (GPL-2.0-or-later): Copyright (C) Andre Fachat,
+// Andreas Boose, Marco van den Heuvel and the VICE Team (VICE's README). Ported to C++ for PetMcp, 2026.
+
 #pragma once
 
 // The PET's IEEE-488 port and what hangs on it. Every line is open collector:

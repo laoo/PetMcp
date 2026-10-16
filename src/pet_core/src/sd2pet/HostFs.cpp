@@ -8,6 +8,10 @@
 //  * commercial use without restriction under your responsibility.
 //  * Redistributions of source code must retain the above copyright notice.
 //
+// Long names by Jim Brain, and the l_* functions, as NODISKEMU carries them:
+// Copyright (C) 2007-2018 Ingo Korb <ingo@akana.de>, GPL-2.0. Ported to C++ for
+// PetMcp, 2026 (THIRD_PARTY.md).
+//
 // FatFs's interface to the DOS, over a host directory: the functions of
 // NODISKEMU's src/ff.c and ff.h at commit e51a6df that fatops.c, d64ops.c and
 // doscmd.c call (ChaN's FatFs R0.06 with Jim Brain's long names and

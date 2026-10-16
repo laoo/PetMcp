@@ -38,7 +38,9 @@ int run( int argc, char** argv )
   std::uint16_t mcpPort = 0;
   app.add_option( "--mcp-http", mcpPort, "Serve MCP over HTTP on 127.0.0.1:PORT, at /mcp" );
   std::filesystem::path program;
-  app.add_option( "program", program, "A .prg to load and run once the PET is ready" )->check( CLI::ExistingFile );
+  app.add_option(
+         "program", program, "A .prg, or a disk image the SD2PET enters, to load and run once the PET is ready" )
+      ->check( CLI::ExistingFile );
   CLI11_PARSE( app, argc, argv );
   settings.expansionBoard = !noExpansion;
   std::uint16_t const linePort =

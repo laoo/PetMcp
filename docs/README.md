@@ -44,6 +44,7 @@ it, never "at the end of the session".
 
 ### Specifications
 - [The control protocol](spec/control-protocol.md): transports, requests, responses, error codes, transcripts, and every method
+- [Batch scripts](spec/batch.md): runs written down, the checkpoints they sum, and the regression suite made of them
 
 ### Decision records
 - [0001: Documentation regime](decisions/0001-documentation-regime.md)

@@ -1,3 +1,6 @@
+// Copyright (C) 2007-2018 Ingo Korb <ingo@akana.de>, as NODISKEMU (a fork of sd2iec)
+// carries it. GPL-2.0. Ported to C++ for PetMcp, 2026 (THIRD_PARTY.md).
+
 #pragma once
 
 // buffers.c (NODISKEMU at commit e51a6df): the DOS's 256-byte buffers and

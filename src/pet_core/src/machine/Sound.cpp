@@ -1,3 +1,7 @@
+// Ported from VICE's src/pet/petsound.c (GPL-2.0-or-later): Copyright (C) Teemu Rantanen, Marco van den Heuvel, Olaf
+// Seibert and the VICE Team (VICE's README). Ported to C++ for PetMcp, 2026. The YM2149Fs' part is the owner's
+// src/pet/petay.c of the same tree.
+
 #include "Sound.hpp"
 
 #include "ExpansionBoard.hpp"

@@ -1,3 +1,6 @@
+// Ported from the owner's VICE (GPL-2.0-or-later), src/pet/petay.c, by Waldemar
+// Pawlaszek. Ported to C++ for PetMcp, 2026.
+
 #pragma once
 
 // A YM2149F, ported from the owner's VICE commit 167bcac (src/pet/petay.c),

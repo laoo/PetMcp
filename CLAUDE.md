@@ -23,6 +23,8 @@ build/debug/src/pet_app/petmcp --rom-dir ../vice/data/PET --server tcp:7701 --mc
 build/debug/src/pet_cli/petmcp-cli --server --rom-dir ../vice/data/PET                       # JSON lines on stdio
 build/debug/src/pet_cli/petmcp-cli --mcp --rom-dir ../vice/data/PET --card-dir ~/PetCard     # MCP for an agent
 ctest --preset debug -L control                     # the protocol's recorded transcripts, tests/control/*.jsonl
+ctest --preset debug -L regression                  # the batch scripts, tests/regression/*.json, against their golden sums
+(cd build/debug/tests && ../src/pet_cli/petmcp-cli --batch ../../../tests/regression/boot.json --rom-dir ../../../../vice/data/PET --record)   # re-record one (docs/spec/batch.md)
 (cd tests && ../build/debug/src/pet_cli/petmcp-cli --transcript control/lines.jsonl > control/lines.expect)   # re-record one, after a deliberate change of answers
 (cd build/debug/tests && ./pet_test_disk disk && ../src/pet_cli/petmcp-cli --rom-dir ../../../../vice/data/PET --transcript ../../../tests/control/disk.jsonl > ../../../tests/control/disk.expect)   # the SD2PET's, which runs beside the disk it builds
 ./scripts/fetch-6502-tests.sh                       # the SingleStepTests 65x02 suite's NMOS 6502, 1.1 GB to fetch
@@ -40,6 +42,9 @@ Homebrew keeps LLVM keg-only, so `clang-tidy` is not on `PATH` on macOS, and it
 does not know where Apple's SDK keeps the standard library. `scripts/tidy.sh`
 handles both; do not invoke `clang-tidy` directly.
 
+An agent drives the emulator with the project skill, `.claude/skills/petmcp/SKILL.md`: a headless
+server, `scripts/petmcp.py`, and the methods to reach for.
+
 What to build next is [docs/plans/milestones.md](docs/plans/milestones.md); a
 session takes one milestone by name.
 
@@ -52,6 +57,7 @@ session takes one milestone by name.
 | `src/pet_cli/` | `petmcp-cli`: headless runs, `--server`, `--mcp`, `--transcript`. Argument parsing and I/O only. |
 | `src/pet_app/` | `petmcp`: the SDL3 + Dear ImGui desktop frontend. |
 | `tests/` | Catch2 v3 tests, linked against `pet_core`; `control/` also holds the protocol's recorded transcripts. |
+| `.claude/skills/petmcp/` | The project skill an agent drives the emulator with. |
 | `libextern/` | Third-party code carried in the tree, unmodified. Not formatted, not tidied. `libextern/README.md` is the inventory. |
 | `cmake/` | `Warnings.cmake`, `Dependencies.cmake`, `Version.cmake`, `Install.cmake`. |
 | `docs/` | See `docs/README.md`; it is the index and the rulebook. |

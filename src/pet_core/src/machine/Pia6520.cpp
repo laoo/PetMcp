@@ -1,3 +1,6 @@
+// Ported from VICE's src/piacore.c (GPL-2.0-or-later): Copyright (C) Jouko Valta, Andre Fachat
+// and the VICE Team (VICE's README). Ported to C++ for PetMcp, 2026.
+
 #include "Pia6520.hpp"
 
 namespace pet::machine

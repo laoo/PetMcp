@@ -60,21 +60,44 @@ foreach( transcript IN ITEMS lines mcp )
   set_tests_properties( "control.${transcript}" PROPERTIES LABELS control )
 endforeach()
 
-# The SD2PET's transcript needs the PET running, so VICE's ROMs beside the
-# repository; without them it is left out, as the [roms] tests skip. Its disk
-# is written by pet_test_disk first, into the build's tests directory, where
-# the transcript runs: no disk image is carried in the tree.
+# The disk the SD2PET's transcript and the regression suite run beside, written
+# by pet_test_disk into the build's tests directory: no disk image is carried
+# in the tree.
 add_executable( pet_test_disk support/MakeTestDisk.cpp support/DiskImage.cpp )
 target_include_directories( pet_test_disk PRIVATE . )
 target_link_libraries( pet_test_disk PRIVATE pet::warnings )
-if( EXISTS "${CMAKE_SOURCE_DIR}/../vice/data/PET" )
-  add_test( NAME "control.disk.image"
-            COMMAND pet_test_disk "${CMAKE_CURRENT_BINARY_DIR}/disk" )
-  set_tests_properties( "control.disk.image" PROPERTIES FIXTURES_SETUP disk_image LABELS control )
+# The disk regression script writes to its own copy, so that the transcript,
+# which runs beside it, reads the disk as written.
+add_test( NAME "test_disk" COMMAND pet_test_disk "${CMAKE_CURRENT_BINARY_DIR}/disk" )
+add_test( NAME "test_disk_rw" COMMAND pet_test_disk "${CMAKE_CURRENT_BINARY_DIR}/disk-rw" )
+set_tests_properties( "test_disk" "test_disk_rw" PROPERTIES FIXTURES_SETUP disk_image )
+
+# The SD2PET's transcript needs the PET running, so VICE's ROMs beside the
+# repository; without them it is left out, as the [roms] tests skip.
+set( PET_TEST_ROMS "${CMAKE_SOURCE_DIR}/../vice/data/PET" )
+if( EXISTS "${PET_TEST_ROMS}" )
   add_test( NAME "control.disk"
-            COMMAND pet_cli --rom-dir "${CMAKE_SOURCE_DIR}/../vice/data/PET"
+            COMMAND pet_cli --rom-dir "${PET_TEST_ROMS}"
                     --transcript "${CMAKE_CURRENT_SOURCE_DIR}/control/disk.jsonl"
                     --expect "${CMAKE_CURRENT_SOURCE_DIR}/control/disk.expect"
             WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}" )
   set_tests_properties( "control.disk" PROPERTIES FIXTURES_REQUIRED disk_image LABELS control )
 endif()
+
+# The regression suite: every script in regression/ run by petmcp-cli --batch,
+# which checks it against the golden sums it holds (docs/spec/batch.md). Run
+# beside the test disk; a script whose ROMs or files are not there exits 77,
+# which CTest counts as skipped.
+set( regression_roms )
+if( EXISTS "${PET_TEST_ROMS}" )
+  set( regression_roms --rom-dir "${PET_TEST_ROMS}" )
+endif()
+file( GLOB regression_scripts CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/regression/*.json" )
+foreach( script IN LISTS regression_scripts )
+  get_filename_component( name "${script}" NAME_WE )
+  add_test( NAME "regression.${name}"
+            COMMAND pet_cli --batch "${script}" ${regression_roms}
+            WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}" )
+  set_tests_properties( "regression.${name}"
+                        PROPERTIES LABELS regression SKIP_RETURN_CODE 77 FIXTURES_REQUIRED disk_image )
+endforeach()

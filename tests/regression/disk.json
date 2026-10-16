@@ -1,0 +1,101 @@
+{
+  "description": "The SD2PET: the test disk (pet_test_disk's, a copy of its own in disk-rw) entered, listed on the screen, its first program run, and a program saved into the image.",
+  "steps": [
+    {
+      "method": "disk.card",
+      "params": {
+        "path": "disk-rw"
+      }
+    },
+    {
+      "method": "emu.run_until",
+      "params": {
+        "screen_contains": "READY."
+      }
+    },
+    {
+      "method": "disk.command",
+      "params": {
+        "command": "cd:hello.d64"
+      }
+    },
+    {
+      "method": "input.type",
+      "params": {
+        "text": "load\"$\",8\nlist\n"
+      }
+    },
+    {
+      "method": "emu.run_frames",
+      "params": {
+        "count": 120
+      }
+    },
+    {
+      "checkpoint": "listed"
+    },
+    {
+      "method": "disk.run",
+      "params": {}
+    },
+    {
+      "method": "emu.run_frames",
+      "params": {
+        "count": 30
+      }
+    },
+    {
+      "checkpoint": "ran"
+    },
+    {
+      "method": "input.type",
+      "params": {
+        "text": "save\"@:copy\",8\nload\"$\",8\nlist\n"
+      }
+    },
+    {
+      "method": "emu.run_frames",
+      "params": {
+        "count": 300
+      }
+    },
+    {
+      "checkpoint": "saved"
+    }
+  ],
+  "golden": {
+    "listed": {
+      "frame": 268,
+      "picture": "0768025a",
+      "ram": "3bb5d94f",
+      "video_ram": "a2444cb9",
+      "expansion_ram0": "75660aac",
+      "expansion_ram1": "75660aac",
+      "character_ram": "c71c0011",
+      "sound": "82bbb83b",
+      "drive": "00, OK,00,00"
+    },
+    "ran": {
+      "frame": 305,
+      "picture": "6c5f6b2c",
+      "ram": "a5d5d134",
+      "video_ram": "6cec040f",
+      "expansion_ram0": "75660aac",
+      "expansion_ram1": "75660aac",
+      "character_ram": "c71c0011",
+      "sound": "9c7c465f",
+      "drive": "00, OK,00,00"
+    },
+    "saved": {
+      "frame": 725,
+      "picture": "96120532",
+      "ram": "053922d4",
+      "video_ram": "63ffc5c8",
+      "expansion_ram0": "75660aac",
+      "expansion_ram1": "75660aac",
+      "character_ram": "c71c0011",
+      "sound": "9dd76067",
+      "drive": "00, OK,00,00"
+    }
+  }
+}

@@ -1,3 +1,6 @@
+// Ported from the owner's VICE (GPL-2.0-or-later), src/pet/petay.c, by Waldemar
+// Pawlaszek. Ported to C++ for PetMcp, 2026.
+
 #include "Ym2149.hpp"
 
 namespace pet::machine

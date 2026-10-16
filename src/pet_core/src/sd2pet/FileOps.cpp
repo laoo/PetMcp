@@ -1,3 +1,6 @@
+// Copyright (C) 2007-2018 Ingo Korb <ingo@akana.de>, as NODISKEMU (a fork of sd2iec)
+// carries it. GPL-2.0. Ported to C++ for PetMcp, 2026 (THIRD_PARTY.md).
+
 // Ports NODISKEMU's src/fileops.c at commit e51a6df: the OPEN of a name, the
 // directory listings ($, $=T, $=P and the raw one of a secondary other than
 // 0), the # buffers and the * previous file. Left out: the UART trace and the

@@ -222,6 +222,9 @@ public:
   /// Keeps every frame of sound made from now on, until stopCapture() hands
   /// them over.
   void startCapture();
+  /// Called with the sound of every run from now on, as it ends; empty to
+  /// stop. Batch scripts sum it (docs/spec/batch.md).
+  void setAudioListener( std::function<void( std::span<AudioFrame const> )> listener );
   [[nodiscard]] bool capturing() const;
   std::vector<AudioFrame> stopCapture();
 

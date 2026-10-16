@@ -1,3 +1,6 @@
+// Copyright (C) 2007-2018 Ingo Korb <ingo@akana.de>, as NODISKEMU (a fork of sd2iec)
+// carries it. GPL-2.0. Ported to C++ for PetMcp, 2026 (THIRD_PARTY.md).
+
 // Ports NODISKEMU's src/parser.c at commit e51a6df. Left out: the display
 // (update_current_dir behaves as with display_found false) and the EEPROM
 // file system (parse_partition's "!:" alias for its partition).

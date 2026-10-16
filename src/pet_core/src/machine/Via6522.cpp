@@ -1,3 +1,6 @@
+// Ported from VICE's src/core/viacore.c (GPL-2.0-or-later): Copyright (C) Andre Fachat, Andreas Boose, Olaf Seibert
+// and the VICE Team (VICE's README). Ported to C++ for PetMcp, 2026.
+
 #include "Via6522.hpp"
 
 namespace pet::machine

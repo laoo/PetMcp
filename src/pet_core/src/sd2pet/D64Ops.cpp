@@ -1,3 +1,6 @@
+// Copyright (C) 2007-2018 Ingo Korb <ingo@akana.de>, as NODISKEMU (a fork of sd2iec)
+// carries it. GPL-2.0. Ported to C++ for PetMcp, 2026 (THIRD_PARTY.md).
+
 // d64ops.c of NODISKEMU at commit e51a6df, ported: D64 operations. Every
 // image type it supports is here, recognised by its size as d64_mount does.
 // Left out: the real-time clock. The petSD+ is ported as one with no RTC chip

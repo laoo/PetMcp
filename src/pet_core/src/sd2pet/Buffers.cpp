@@ -1,3 +1,6 @@
+// Copyright (C) 2007-2018 Ingo Korb <ingo@akana.de>, as NODISKEMU (a fork of sd2iec)
+// carries it. GPL-2.0. Ported to C++ for PetMcp, 2026 (THIRD_PARTY.md).
+
 // Ports NODISKEMU's src/buffers.c, and buffers.h's check_free_buffers() and
 // get_dirty_buffer_count(), at commit e51a6df. Left out: the LEDs
 // (set_busy_led, set_dirty_led, update_leds), which only showed what the

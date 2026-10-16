@@ -1,3 +1,6 @@
+// Copyright (c) 2015, 2017 Nils Eilers (NODISKEMU's ieee.c and atn-ack-petsd+.S),
+// under the BSD licence Sd2Pet.cpp carries. Ported to C++ for PetMcp, 2026.
+
 #pragma once
 
 // The SD2PET Future on the PET's IEEE-488 port: NODISKEMU's bus handling,

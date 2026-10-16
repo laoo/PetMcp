@@ -1,3 +1,7 @@
+// Ported from VICE's src/pet/petmem.c, petpia1.c, petpia2.c and petvia.c (GPL-2.0-or-later): Copyright (C) Ettore
+// Perazzoli, Jouko Valta, Andre Fachat, Andreas Boose, Marco van den Heuvel and the VICE Team (VICE's README). Ported
+// to C++ for PetMcp, 2026.
+
 #include "pet/machine/Machine.hpp"
 
 #include "Clock.hpp"
@@ -511,6 +515,10 @@ struct Machine::Board final : cpu::Bus
       auto const& made = sound.frames();
       captured.insert( captured.end(), made.begin(), made.end() );
     }
+    if ( audioListener )
+    {
+      audioListener( sound.frames() );
+    }
     return result;
   }
 
@@ -602,6 +610,7 @@ struct Machine::Board final : cpu::Bus
   std::uint8_t lastBus{};
   bool textSet{ true };
   std::function<void( Machine const& )> instructionHook;
+  std::function<void( std::span<AudioFrame const> )> audioListener;
 
   /// The instruction the 6502 is in, which a watched access is reported of.
   std::uint16_t currentPc{};
@@ -853,6 +862,11 @@ IoState Machine::io() const
 std::span<AudioFrame const> Machine::audio() const
 {
   return mBoard->sound.frames();
+}
+
+void Machine::setAudioListener( std::function<void( std::span<AudioFrame const> )> listener )
+{
+  mBoard->audioListener = std::move( listener );
 }
 
 void Machine::startCapture()

@@ -1,3 +1,6 @@
+// Copyright (C) 2007-2018 Ingo Korb <ingo@akana.de>, as NODISKEMU (a fork of sd2iec)
+// carries it. GPL-2.0. Ported to C++ for PetMcp, 2026 (THIRD_PARTY.md).
+
 // doscmd.c (NODISKEMU at commit e51a6df): the command channel parser, as
 // configs/config-petSD+ builds it.
 //

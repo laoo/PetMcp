@@ -1,0 +1,91 @@
+{
+  "description": "A BASIC program typed, listed and run, and VIA CB2's tone from the shift register run free.",
+  "steps": [
+    {
+      "method": "emu.run_until",
+      "params": {
+        "screen_contains": "READY."
+      }
+    },
+    {
+      "method": "input.type",
+      "params": {
+        "text": "10 for i=1 to 5:print i;i*i:next\n20 print \"done\"\nlist\nrun\n"
+      }
+    },
+    {
+      "method": "emu.run_frames",
+      "params": {
+        "count": 60
+      }
+    },
+    {
+      "checkpoint": "ran"
+    },
+    {
+      "method": "input.type",
+      "params": {
+        "text": "poke59467,16:poke59466,15:poke59464,100\n"
+      }
+    },
+    {
+      "method": "emu.run_frames",
+      "params": {
+        "count": 60
+      }
+    },
+    {
+      "checkpoint": "tone"
+    },
+    {
+      "method": "input.type",
+      "params": {
+        "text": "poke59467,0\n"
+      }
+    },
+    {
+      "method": "emu.run_frames",
+      "params": {
+        "count": 30
+      }
+    },
+    {
+      "checkpoint": "quiet"
+    }
+  ],
+  "golden": {
+    "ran": {
+      "frame": 380,
+      "picture": "25d36d12",
+      "ram": "60cac056",
+      "video_ram": "b01efb43",
+      "expansion_ram0": "75660aac",
+      "expansion_ram1": "75660aac",
+      "character_ram": "c71c0011",
+      "sound": "41d0600e",
+      "drive": "73,NODISKEMU V1.0.0ALPHA0-20260918-E51A6DF,00,00"
+    },
+    "tone": {
+      "frame": 600,
+      "picture": "b09b6f4e",
+      "ram": "aa6a42ce",
+      "video_ram": "0db23427",
+      "expansion_ram0": "75660aac",
+      "expansion_ram1": "75660aac",
+      "character_ram": "c71c0011",
+      "sound": "c57fbf27",
+      "drive": "73,NODISKEMU V1.0.0ALPHA0-20260918-E51A6DF,00,00"
+    },
+    "quiet": {
+      "frame": 678,
+      "picture": "67e531fc",
+      "ram": "8c0aed64",
+      "video_ram": "2429bae2",
+      "expansion_ram0": "75660aac",
+      "expansion_ram1": "75660aac",
+      "character_ram": "c71c0011",
+      "sound": "7b5f8f47",
+      "drive": "73,NODISKEMU V1.0.0ALPHA0-20260918-E51A6DF,00,00"
+    }
+  }
+}

@@ -1,3 +1,6 @@
+// Copyright (C) 2007-2018 Ingo Korb <ingo@akana.de>, as NODISKEMU (a fork of sd2iec)
+// carries it. GPL-2.0. Ported to C++ for PetMcp, 2026 (THIRD_PARTY.md).
+
 // Ports NODISKEMU's src/errormsg.c at commit e51a6df. Left out: the LEDs
 // (led_state's LED_ERROR, set_error_led), the display (display_errorchannel)
 // and the LCD (lcd_update_disk_status), which only showed the message. The

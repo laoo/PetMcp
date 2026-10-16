@@ -4,6 +4,7 @@ add_library( pet_core
   src/Version.cpp
   src/control/Dispatcher.cpp
   src/control/AudioMethods.cpp
+  src/control/Batch.cpp
   src/control/CpuMethods.cpp
   src/control/DebugMethods.cpp
   src/control/DiskMethods.cpp

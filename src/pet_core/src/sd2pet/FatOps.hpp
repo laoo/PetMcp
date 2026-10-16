@@ -1,3 +1,7 @@
+// Copyright (C) 2007-2018 Ingo Korb <ingo@akana.de>, as NODISKEMU (a fork of sd2iec)
+// carries it; ASCII/PET conversion Copyright (C) 2008 Jim Brain <brain@jbrain.com>.
+// GPL-2.0. Ported to C++ for PetMcp, 2026 (THIRD_PARTY.md).
+
 #pragma once
 
 // fatops.c and fatops.h (NODISKEMU at commit e51a6df): the card's own files,

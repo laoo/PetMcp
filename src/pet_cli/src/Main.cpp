@@ -4,6 +4,7 @@
 
 #include "pet/Emulator.hpp"
 #include "pet/Version.hpp"
+#include "pet/control/Batch.hpp"
 #include "pet/control/Dispatcher.hpp"
 #include "pet/server/JsonLinesServer.hpp"
 #include "pet/server/McpServer.hpp"
@@ -118,6 +119,55 @@ int runTranscript( pet::control::Dispatcher const& dispatcher,
   return 0;
 }
 
+/// What --batch exits with when its script needs the ROMs or a file that is
+/// not there: what CTest takes for a skipped test.
+constexpr int EXIT_SKIPPED = 77;
+
+/// Runs the batch script at `path`, docs/spec/batch.md, and checks its sums
+/// against the golden ones the script holds, or records them into it.
+int runScript( pet::Settings settings, std::filesystem::path const& path, bool record )
+{
+  std::ifstream file{ path };
+  auto script = pet::control::Json::parse( file, nullptr, false );
+  if ( script.is_discarded() || !script.is_object() )
+  {
+    std::cerr << "petmcp-cli: " << path.string() << " is not a JSON object\n";
+    return 2;
+  }
+  auto const result = pet::control::runBatch( std::move( settings ), script );
+  switch ( result.outcome )
+  {
+  case pet::control::BatchResult::Outcome::MISSING:
+    std::cout << path.filename().string() << ": skipped: " << result.message << '\n';
+    return EXIT_SKIPPED;
+  case pet::control::BatchResult::Outcome::FAILED:
+    std::cerr << path.filename().string() << ": " << result.message << '\n';
+    return 2;
+  case pet::control::BatchResult::Outcome::RAN:
+    break;
+  }
+
+  if ( record )
+  {
+    script["golden"] = pet::control::goldenOf( result );
+    std::ofstream out{ path };
+    out << script.dump( 2 ) << '\n';
+    std::cout << path.filename().string() << ": recorded " << result.checkpoints.size() << " checkpoints\n";
+    return out ? 0 : 2;
+  }
+  auto const differences = pet::control::compareWithGolden(
+      result, script.contains( "golden" ) ? script.at( "golden" ) : pet::control::Json{} );
+  for ( std::string const& difference : differences )
+  {
+    std::cout << path.filename().string() << ": " << difference << '\n';
+  }
+  if ( differences.empty() )
+  {
+    std::cout << path.filename().string() << ": " << result.checkpoints.size() << " checkpoints match\n";
+  }
+  return differences.empty() ? 0 : 1;
+}
+
 int run( int argc, char** argv )
 {
   CLI::App app{ "Headless Commodore PET 3032 emulator", "petmcp-cli" };
@@ -151,6 +201,15 @@ int run( int argc, char** argv )
                       "Answer the requests in a file, one a line (MCP messages with --mcp), and print the answers" )
           ->check( CLI::ExistingFile )
           ->excludes( serverFlag );
+  std::filesystem::path batch;
+  auto* const batchOption =
+      app.add_option( "--batch", batch, "Run a batch script (docs/spec/batch.md) and check it against its golden sums" )
+          ->check( CLI::ExistingFile )
+          ->excludes( serverFlag )
+          ->excludes( transcriptOption );
+  bool record = false;
+  app.add_flag( "--record", record, "With --batch: write the sums into the script as its golden ones" )
+      ->needs( batchOption );
   std::filesystem::path expected;
   app.add_option( "--expect", expected, "With --transcript: compare the answers with this file's lines instead" )
       ->check( CLI::ExistingFile )
@@ -181,6 +240,10 @@ int run( int argc, char** argv )
   spdlog::set_default_logger( spdlog::stderr_color_mt( "petmcp" ) );
 
   bool const server = serverFlag->count() > 0;
+  if ( !batch.empty() )
+  {
+    return runScript( std::move( settings ), batch, record );
+  }
   if ( !server && !mcp && transcript.empty() )
   {
     std::cerr << app.help();

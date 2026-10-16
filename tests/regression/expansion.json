@@ -1,0 +1,103 @@
+{
+  "description": "The expansion board: AY1's tone A at full volume, a glyph drawn in character RAM and shown from it, and RAM0's banks 5 and 6 written through $A000. Each line typed fits the editor's 80 characters.",
+  "steps": [
+    {
+      "method": "emu.run_until",
+      "params": {
+        "screen_contains": "READY."
+      }
+    },
+    {
+      "method": "input.type",
+      "params": {
+        "text": "poke36864,0:poke36865,142:poke36864,7:poke36865,62\npoke36864,8:poke36865,15\n"
+      }
+    },
+    {
+      "method": "emu.run_frames",
+      "params": {
+        "count": 60
+      }
+    },
+    {
+      "checkpoint": "tone"
+    },
+    {
+      "method": "input.type",
+      "params": {
+        "text": "poke36864,8:poke36865,0\nfori=0to7:poke38920+i,255-i*16:next\n"
+      }
+    },
+    {
+      "method": "input.type",
+      "params": {
+        "text": "poke36864,7:poke36865,184:poke36864,15:poke36865,0\n"
+      }
+    },
+    {
+      "method": "emu.run_frames",
+      "params": {
+        "count": 30
+      }
+    },
+    {
+      "checkpoint": "characters"
+    },
+    {
+      "method": "input.type",
+      "params": {
+        "text": "poke36865,3:poke36864,7:poke36865,248\npoke36864,14:poke36865,5:poke40960,170\n"
+      }
+    },
+    {
+      "method": "input.type",
+      "params": {
+        "text": "poke36865,6:poke40960,85:poke36865,5\n"
+      }
+    },
+    {
+      "method": "emu.run_frames",
+      "params": {
+        "count": 30
+      }
+    },
+    {
+      "checkpoint": "banks"
+    }
+  ],
+  "golden": {
+    "tone": {
+      "frame": 452,
+      "picture": "99435f62",
+      "ram": "a324a932",
+      "video_ram": "f9da5d97",
+      "expansion_ram0": "75660aac",
+      "expansion_ram1": "75660aac",
+      "character_ram": "c71c0011",
+      "sound": "df80fee3",
+      "drive": "73,NODISKEMU V1.0.0ALPHA0-20260918-E51A6DF,00,00"
+    },
+    "characters": {
+      "frame": 926,
+      "picture": "b1ed2f0c",
+      "ram": "f4d78818",
+      "video_ram": "6ab15d67",
+      "expansion_ram0": "75660aac",
+      "expansion_ram1": "75660aac",
+      "character_ram": "5a0605dc",
+      "sound": "2f13689d",
+      "drive": "73,NODISKEMU V1.0.0ALPHA0-20260918-E51A6DF,00,00"
+    },
+    "banks": {
+      "frame": 1412,
+      "picture": "59d8291f",
+      "ram": "44b802ff",
+      "video_ram": "4dde58a0",
+      "expansion_ram0": "5008daee",
+      "expansion_ram1": "75660aac",
+      "character_ram": "5a0605dc",
+      "sound": "735f5c8a",
+      "drive": "73,NODISKEMU V1.0.0ALPHA0-20260918-E51A6DF,00,00"
+    }
+  }
+}

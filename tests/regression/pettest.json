@@ -1,0 +1,104 @@
+{
+  "description": "The owner's measuring programs from ../PETTest, each run from its own disk to its report: vsync, irqcost and the SD2PET bench with the inline receiver. Skipped without ../PETTest.",
+  "steps": [
+    {
+      "method": "disk.run",
+      "params": {
+        "path": "../../../../PETTest/vsync.d64"
+      }
+    },
+    {
+      "method": "emu.run_frames",
+      "params": {
+        "count": 600
+      }
+    },
+    {
+      "checkpoint": "vsync"
+    },
+    {
+      "method": "emu.reset",
+      "params": {
+        "power": true
+      }
+    },
+    {
+      "method": "disk.run",
+      "params": {
+        "path": "../../../../PETTest/irqcost.d64"
+      }
+    },
+    {
+      "method": "emu.run_frames",
+      "params": {
+        "count": 600
+      }
+    },
+    {
+      "checkpoint": "irqcost"
+    },
+    {
+      "method": "emu.reset",
+      "params": {
+        "power": true
+      }
+    },
+    {
+      "method": "disk.run",
+      "params": {
+        "path": "../../../../PETTest/bench-inline.d64"
+      }
+    },
+    {
+      "method": "emu.run_until",
+      "params": {
+        "screen_contains": "SMAX",
+        "timeout_cycles": 100000000
+      }
+    },
+    {
+      "method": "emu.run_frames",
+      "params": {
+        "count": 10
+      }
+    },
+    {
+      "checkpoint": "bench"
+    }
+  ],
+  "golden": {
+    "vsync": {
+      "frame": 714,
+      "picture": "a64bb1c2",
+      "ram": "66059695",
+      "video_ram": "c2f3c0fa",
+      "expansion_ram0": "75660aac",
+      "expansion_ram1": "75660aac",
+      "character_ram": "c71c0011",
+      "sound": "e15fa081",
+      "drive": "00, OK,00,00"
+    },
+    "irqcost": {
+      "frame": 714,
+      "picture": "90ba2c91",
+      "ram": "f3760f11",
+      "video_ram": "8e9c79b2",
+      "expansion_ram0": "75660aac",
+      "expansion_ram1": "75660aac",
+      "character_ram": "c71c0011",
+      "sound": "47f7c057",
+      "drive": "00, OK,00,00"
+    },
+    "bench": {
+      "frame": 312,
+      "picture": "8b6a70ab",
+      "ram": "85a91a14",
+      "video_ram": "0c7a3c02",
+      "expansion_ram0": "75660aac",
+      "expansion_ram1": "75660aac",
+      "character_ram": "c71c0011",
+      "sound": "368d2423",
+      "drive": "00, OK,00,00"
+    }
+  }
+}

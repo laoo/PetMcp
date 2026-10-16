@@ -1,3 +1,6 @@
+// Copyright (C) 2007-2018 Ingo Korb <ingo@akana.de>, as NODISKEMU (a fork of sd2iec)
+// carries it. GPL-2.0. Ported to C++ for PetMcp, 2026 (THIRD_PARTY.md).
+
 // Ports NODISKEMU's src/p00cache.c at commit e51a6df: the [PSUR]00 name
 // cache, whole; the petSD+ is built with CONFIG_P00CACHE. Its statics are
 // P00CacheState's.

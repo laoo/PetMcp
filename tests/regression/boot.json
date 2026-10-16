@@ -1,0 +1,27 @@
+{
+  "description": "Power-up to READY: the kernal's RAM test, the screen cleared, the banner and the SD2PET's 73.",
+  "steps": [
+    {
+      "method": "emu.run_frames",
+      "params": {
+        "count": 120
+      }
+    },
+    {
+      "checkpoint": "ready"
+    }
+  ],
+  "golden": {
+    "ready": {
+      "frame": 120,
+      "picture": "01443f06",
+      "ram": "07861d2a",
+      "video_ram": "3f834983",
+      "expansion_ram0": "75660aac",
+      "expansion_ram1": "75660aac",
+      "character_ram": "c71c0011",
+      "sound": "900c106d",
+      "drive": "73,NODISKEMU V1.0.0ALPHA0-20260918-E51A6DF,00,00"
+    }
+  }
+}

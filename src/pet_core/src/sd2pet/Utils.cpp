@@ -1,3 +1,6 @@
+// Copyright (C) 2007-2018 Ingo Korb <ingo@akana.de>, as NODISKEMU (a fork of sd2iec)
+// carries it. GPL-2.0. Ported to C++ for PetMcp, 2026 (THIRD_PARTY.md).
+
 // Ports NODISKEMU's src/utils.c and src/ustring.h at commit e51a6df. Left
 // out: utils.h's min and max macros, for which callers take std::min and
 // std::max. ustring.h's macros are functions with the semantics of the C

@@ -1,3 +1,7 @@
+// Copyright (C) 2007-2018 Ingo Korb <ingo@akana.de>, as NODISKEMU (a fork of sd2iec)
+// carries it; ASCII/PET conversion Copyright (C) 2008 Jim Brain <brain@jbrain.com>.
+// GPL-2.0. Ported to C++ for PetMcp, 2026 (THIRD_PARTY.md).
+
 // NODISKEMU's src/fatops.c and fatops.h at commit e51a6df: the FAT operations,
 // on the card HostFs makes of a host directory, and the mounting of the images
 // on it. fatMountHostImage is not NODISKEMU's: it is the emulator's "mount this

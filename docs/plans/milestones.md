@@ -19,9 +19,6 @@ a screen.
 
 ## M8: Regression and release
 
-- Batch scripts with checkpoints summing the picture, memory and sound, and a regression suite
-  of them (`ctest -L regression`).
-- The project skill, `.claude/skills/petmcp/SKILL.md`, for driving the emulator from an agent.
 - CI green on three platforms; a tagged release.
 
 **Exit:** CI publishes a release from a tag.
