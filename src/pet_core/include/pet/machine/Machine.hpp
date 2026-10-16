@@ -3,10 +3,14 @@
 #include "pet/machine/Keyboard.hpp"
 #include "pet/machine/Roms.hpp"
 
+#include <array>
 #include <cstdint>
+#include <expected>
 #include <functional>
 #include <memory>
 #include <span>
+#include <string>
+#include <vector>
 
 namespace pet::machine
 {
@@ -27,7 +31,34 @@ enum class StopReason : std::uint8_t
 {
   COMPLETED,
   CONDITION,
-  TIMEOUT
+  TIMEOUT,
+  BREAKPOINT,
+  WATCHPOINT
+};
+
+/// The accesses a watchpoint watches.
+enum class Access : std::uint8_t
+{
+  READ = 1,
+  WRITE = 2,
+  BOTH = 3
+};
+
+/// A range of addresses whose data accesses stop a run.
+struct Watchpoint
+{
+  std::uint16_t address{};
+  std::uint32_t size{ 1 };
+  Access access{ Access::WRITE };
+};
+
+/// The access that set a watchpoint off, and the instruction that made it.
+struct WatchHit
+{
+  std::uint16_t address{};
+  bool write{};
+  std::uint8_t value{};
+  std::uint16_t pc{};
 };
 
 struct RunResult
@@ -35,6 +66,51 @@ struct RunResult
   StopReason reason{};
   std::uint64_t cycles{};
   std::uint64_t frames{};
+  /// With BREAKPOINT, the address; with WATCHPOINT, the access.
+  std::uint16_t breakpoint{};
+  WatchHit watchpoint{};
+};
+
+/// A PIA's registers as written, and its control lines' outputs.
+struct PiaState
+{
+  std::uint8_t portA{};
+  std::uint8_t ddrA{};
+  std::uint8_t controlA{};
+  std::uint8_t portB{};
+  std::uint8_t ddrB{};
+  std::uint8_t controlB{};
+  bool ca2{};
+  bool cb2{};
+};
+
+/// The VIA's registers as written, and its timers as they count.
+struct ViaState
+{
+  std::array<std::uint8_t, 16> registers{};
+  std::uint16_t t1{};
+  std::uint16_t t1Latch{};
+  std::uint16_t t2{};
+  std::uint8_t ifr{};
+  std::uint8_t ier{};
+};
+
+struct IoState
+{
+  PiaState pia1;
+  PiaState pia2;
+  ViaState via;
+  /// The IRQ line, pulled by any of them.
+  bool irq{};
+};
+
+/// An instruction the 6502 began: where, in which cycle, the registers before
+/// it, and its bytes as they were when it ran.
+struct TracedInstruction
+{
+  std::uint64_t cycle{};
+  CpuState registers{};
+  std::array<std::uint8_t, 3> bytes{};
 };
 
 /// The PET 3032: the 6502, 32 KB of RAM, the video, the PIAs and the VIA,
@@ -66,6 +142,49 @@ public:
   /// Runs until `condition` holds at an instruction boundary, or for
   /// `timeoutCycles`.
   RunResult runUntil( std::function<bool( Machine const& )> const& condition, std::uint64_t timeoutCycles );
+
+  /// Runs `count` instructions, stopping before at a breakpoint or after a
+  /// watched access.
+  RunResult step( std::uint64_t count );
+
+  /// Breakpoints: a run stops before the instruction at their address. The
+  /// instruction the PET stands at runs when it runs on.
+  void addBreakpoint( std::uint16_t address );
+  bool removeBreakpoint( std::uint16_t address );
+  [[nodiscard]] std::vector<std::uint16_t> breakpoints() const;
+
+  /// Watchpoints, one per address: a run stops after the instruction whose
+  /// data access, a read or a write the instruction makes beyond fetching
+  /// itself, falls in one's range. Dummy accesses count, as they reach the
+  /// bus.
+  void addWatchpoint( Watchpoint watchpoint );
+  bool removeWatchpoint( std::uint16_t address );
+  [[nodiscard]] std::vector<Watchpoint> watchpoints() const;
+
+  /// The history of execution: every instruction begun in the last
+  /// traceCycles() cycles of the PET's time. traceLength() are kept; trace()
+  /// answers `count` of them from the `start`th, 0 being the oldest kept.
+  /// A second's worth is some 300,000 instructions, of 16 bytes each.
+  static constexpr std::uint64_t DEFAULT_TRACE_CYCLES = 1'000'000;
+  void setTraceCycles( std::uint64_t cycles );
+  [[nodiscard]] std::uint64_t traceCycles() const;
+  [[nodiscard]] std::size_t traceLength() const;
+  [[nodiscard]] std::vector<TracedInstruction> trace( std::size_t start, std::size_t count ) const;
+  /// The `index`th kept, 0 being the oldest; it must be below traceLength().
+  [[nodiscard]] TracedInstruction tracedAt( std::size_t index ) const;
+
+  /// The I/O chips' registers, read without side effects.
+  [[nodiscard]] IoState io() const;
+
+  /// How the last run ended.
+  [[nodiscard]] RunResult const& lastRun() const;
+
+  /// The whole machine's state, all a run changes, without the ROMs, the
+  /// debugging aids or the host's keys.
+  [[nodiscard]] std::vector<std::uint8_t> saveState() const;
+  /// Restores a state saveState() made of a machine with these ROMs, by this
+  /// build. On failure the machine is as it was.
+  std::expected<void, std::string> loadState( std::span<std::uint8_t const> state );
 
   /// Called at every instruction boundary from now on, before the instruction
   /// runs; empty to stop. For traces; it slows the run.
@@ -107,6 +226,8 @@ public:
   [[nodiscard]] bool textSet() const;
 
 private:
+  void completed( RunResult& result );
+
   struct Board;
   std::unique_ptr<Board> mBoard;
 };

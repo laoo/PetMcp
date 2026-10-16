@@ -78,6 +78,20 @@ public:
 
   [[nodiscard]] Snapshot snapshot() const;
 
+  template <class Archive>
+  void serialize( Archive& archive )
+  {
+    archive( mPortA );
+    archive( mDdrA );
+    archive( mControlA );
+    archive( mPortB );
+    archive( mDdrB );
+    archive( mControlB );
+    archive( mCaState );
+    archive( mCbState );
+    mIrq.serialize( archive );
+  }
+
 private:
   void updateIrq( Clock from );
   [[nodiscard]] std::uint8_t readRegister( std::uint16_t address, bool peek, Clock now );

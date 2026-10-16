@@ -78,6 +78,21 @@ void EmulationThread::setHostKeys( machine::KeyMatrix const& keys )
   mHostKeys = keys;
 }
 
+void EmulationThread::runFrame( machine::Machine& machine )
+{
+  {
+    std::scoped_lock const lock{ mHostKeysMutex };
+    machine.setHostKeys( mHostKeys );
+  }
+  machine::RunResult const run = machine.runFrames( 1 );
+  if ( run.reason == machine::StopReason::BREAKPOINT || run.reason == machine::StopReason::WATCHPOINT )
+  {
+    // The window stops where the debugger asked, as a client's run would;
+    // emu.resume or the menu runs it on.
+    mEmulator.setPaused( true );
+  }
+}
+
 void EmulationThread::publishPicture()
 {
   machine::Machine const* const machine = mEmulator.machine();
@@ -161,11 +176,7 @@ void EmulationThread::loop()
       if ( owed >= 1.0 )
       {
         owed -= 1.0;
-        {
-          std::scoped_lock const lock{ mHostKeysMutex };
-          machine->setHostKeys( mHostKeys );
-        }
-        machine->runFrames( 1 );
+        runFrame( *machine );
         publishPicture();
         continue;
       }

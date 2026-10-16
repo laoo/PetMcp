@@ -135,15 +135,32 @@ screen is drawn in the phosphor's colour and the dots' shape the Display menu ch
 ([0016](decisions/0016-the-screen-is-green-and-square.md)). A `.prg` opened, dropped on the window
 or named on the command line is loaded and run through `program.load`, once the PET is at READY.
 
-**Debugger windows:** the 6502's registers and disassembly, memory, the VIA's and PIAs'
-registers, the YM2149Fs, and the IEEE-488 bus.
+**Debugger windows:** the 6502's registers, the code at its PC with its breakpoints, and stepping
+(CPU); the history of execution, scrolled through a page at a time and searched by PC and by
+disassembly, its length set there (History); the address space as hex (Memory); the PIAs' and the VIA's registers (I/O). The
+YM2149Fs and the IEEE-488 bus get theirs with M5 and M6. Every window asks through the protocol.
 
 ## Save states
 
-Each device writes a tagged chunk (`FOURCC`, version, size). A state is a header, the chunks, and
-an optional thumbnail. Tagged chunks let a device's layout change without invalidating other
-devices' data. The SD2PET's state holds its channels and buffers, and names the images it has
-mounted; the card directory's files are not part of a state.
+Each device writes a tagged chunk (`FOURCC`, version, size). A state is a header, which names the
+layout's version and the ROMs' CRC-32, and the chunks. Tagged chunks let a device's layout change
+without invalidating other devices' data. The pictures are kept a bit a dot, so a state is some
+50 KB. The SD2PET's state will hold its channels and buffers, and name the images it has mounted;
+the card directory's files are not part of a state.
+
+A frame of the desktop application's own run stopped at a breakpoint or a watchpoint pauses the
+window where the debugger asked. There is no rewind: a PET is debugged, not replayed, and the
+history of execution answers how the code came to where it stopped.
+
+## The history of execution
+
+The machine notes every instruction it begins, with its cycle, the registers before it and its
+bytes as they were when it ran, and keeps those of the last seconds of the PET's time: 1 by
+default, up to 60, some 300,000 instructions and 5 MB a second, 16 bytes each. The bytes are noted rather than
+read again when asked for, so that the history shows what ran, whatever the program has written
+over it since. It is counted back from the instruction the PET stands at, so that "how did it get
+here" reads forward through the indices. The length is the emulator's, applied to every machine powered up, and the desktop
+application keeps it with its settings.
 
 ## Testing
 

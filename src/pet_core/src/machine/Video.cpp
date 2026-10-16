@@ -76,6 +76,57 @@ Video::Event Video::cycle( Clock now, bool textSet )
   return Event::NONE;
 }
 
+namespace
+{
+
+/// The dots of `bytes`, every `stride`th one lit when it is not 0, a bit a dot.
+std::vector<std::uint8_t> pack( std::span<std::uint8_t const> bytes, std::size_t stride )
+{
+  std::vector<std::uint8_t> bits( ( ( bytes.size() / stride ) + 7 ) / 8 );
+  for ( std::size_t dot = 0; dot * stride < bytes.size(); ++dot )
+  {
+    if ( bytes[dot * stride] != 0 )
+    {
+      bits[dot / 8] |= static_cast<std::uint8_t>( 1U << ( dot % 8 ) );
+    }
+  }
+  return bits;
+}
+
+bool litIn( std::vector<std::uint8_t> const& bits, std::size_t dot )
+{
+  return ( bits[dot / 8] & ( 1U << ( dot % 8 ) ) ) != 0;
+}
+
+} // namespace
+
+std::vector<std::uint8_t> Video::packDots() const
+{
+  return pack( mDots, 1 );
+}
+
+std::vector<std::uint8_t> Video::packPicture() const
+{
+  return pack( mPicture, 4 );
+}
+
+void Video::unpack( std::vector<std::uint8_t> const& drawing, std::vector<std::uint8_t> const& complete )
+{
+  std::size_t const bytes = ( mDots.size() + 7 ) / 8;
+  if ( drawing.size() != bytes || complete.size() != bytes )
+  {
+    return;
+  }
+  for ( std::size_t dot = 0; dot < mDots.size(); ++dot )
+  {
+    mDots[dot] = litIn( drawing, dot ) ? 1 : 0;
+    std::uint8_t const level = litIn( complete, dot ) ? 0xff : 0x00;
+    mPicture[dot * 4] = level;
+    mPicture[( dot * 4 ) + 1] = level;
+    mPicture[( dot * 4 ) + 2] = level;
+  }
+}
+
 bool Video::offScreen() const
 {
   return mOffScreen;

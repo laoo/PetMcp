@@ -213,6 +213,8 @@ A request that failed:
 | `power_up_failed` | `emu.reset` with `power`, or `emu.set_rom_directory`, could not read the ROMs; the PET that ran runs on. |
 | `invalid_input` | An `input.` method was given a key name, or a text, the PET's keyboard has no key for. |
 | `load_failed` | `program.load` could not read the file, or the program is shorter than its address or does not fit in RAM. |
+| `state_failed` | A state file could not be written or read. |
+| `state_mismatch` | A state file is not a PET state, is of another build's layout, or of a PET with other ROMs. |
 | `invalid_region` | No memory region of that name, or `memory.write` was given one it cannot write: a ROM. |
 | `invalid_range` | The bytes asked for, or given to `memory.write`, run past the end of the region, or past RAM and video RAM in CPU addresses. |
 | `screenshot_failed` | The picture could not be encoded or written. |
@@ -243,6 +245,7 @@ Takes no parameters.
 | `paused` | Whether the desktop application's own run is paused (`emu.pause`). Always present; `petmcp-cli` has no run of its own. |
 | `running` | Whether the PET is powered up. |
 | `cycles`, `frame` | With `running`: cycles since power-up, and frame boundaries passed. |
+| `breakpoint`, `watchpoint` | Present when the last run stopped at one: the same object as in that run's answer. So a client that attaches to a window that stopped by itself sees where. |
 | `error` | Without `running`: why it is not. |
 
 ### `emu.pause`, `emu.resume`
@@ -286,8 +289,13 @@ Errors: `no_machine`, `power_up_failed`, `bad_request`.
 
 | Field | Meaning |
 |---|---|
-| `reason` | `completed`. |
+| `reason` | `completed`; `breakpoint` when it stopped before an instruction with a breakpoint; `watchpoint` when it stopped after an instruction that made a watched access. |
 | `cycles_executed`, `frames_executed` | Cycles the run took, to the instruction boundary it stopped at, and frame boundaries it passed. |
+| `breakpoint` | With `reason` `breakpoint`: `{"address"}`. |
+| `watchpoint` | With `reason` `watchpoint`: `{"address", "access": "read" or "write", "value", "pc"}`, `pc` being the instruction that made the access. |
+
+Every run, `emu.run_until`, `input.type`, `input.press` and `emu.step` among them, stops at a
+breakpoint or a watchpoint and answers so.
 
 Errors: `no_machine`, `bad_request`.
 
@@ -476,3 +484,135 @@ has booted, the kernal clears what was loaded.
 `end` is one past its last byte; `typed` is what was typed, with `run` only.
 
 Errors: `no_machine`, `load_failed`, `bad_request`.
+
+### `emu.step`
+
+| Param | Meaning |
+|---|---|
+| `count` | Instructions to run, 1 to 1,000,000; 1 when left out. |
+
+Answers as `emu.run_frames` does. An interrupt's entry is no instruction: it runs on the way to
+the next one.
+
+Errors: `no_machine`, `bad_request`.
+
+### `debug.breakpoint.add`, `debug.breakpoint.remove`, `debug.breakpoint.list`
+
+`add` and `remove` take `address`, an instruction's, and answer `{}`. A run stops before the
+instruction there; the instruction the PET stands at runs when the run goes on, so a run never
+stops twice at once at the same place. A breakpoint in code that runs every frame stops every
+run within a frame; remove it to run on. `list` answers `{"breakpoints": [addresses]}`, ascending.
+
+Errors: `no_machine`, `bad_request`.
+
+### `debug.watchpoint.add`, `debug.watchpoint.remove`, `debug.watchpoint.list`
+
+A watchpoint stops a run after the instruction that reads or writes data in its range: any access
+the instruction makes but reading the instruction stream, its operands and the dummy reads of its
+next opcode. Other dummy accesses, such as the read before an indexed access that crosses a page,
+or the first write of a read-modify-write, reach the bus and count.
+
+| Param | Meaning |
+|---|---|
+| `address` | The range's first address; one watchpoint per address, a second replacing the first. |
+| `size` | Bytes in the range, 1 if left out. |
+| `access` | `read`, `write` (the default) or `access` for both. |
+
+`remove` takes `address`. `list` answers `{"watchpoints":[{"address","size","access"}]}`.
+
+Errors: `no_machine`, `bad_request`.
+
+### `debug.trace`
+
+The history of execution, counted back from now: index 0 is the newest instruction, the one the
+PET stands at and runs next, 1 the one that ran before it, and so on, over the last seconds
+`debug.trace.configure` sets, 1 by default. While the PET stands still an index keeps naming the
+same instruction; as it runs on, the indices move with it.
+
+| Param | Meaning |
+|---|---|
+| `from` | The newest one's index; 0 when left out. |
+| `count` | How many, going back from `from`, 0 to 4096; 32 when left out. |
+
+```json
+{"id":8,"method":"debug.trace","params":{"from":1,"count":2}}
+{"id":8,"ok":true,"result":{"total":289167,"seconds":1.0,"instructions":[
+  {"index":1,"pc":58013,"cycle":1660133,"a":0,"x":0,"y":10,"s":242,"p":50,"bytes_hex":"a59e","disasm":"LDA $9E"},
+  {"index":2,"pc":58017,"cycle":1660130,"a":0,"x":0,"y":10,"s":242,"p":50,"bytes_hex":"f0fa","disasm":"BEQ $E29D"}]}}
+```
+
+| Field | Meaning |
+|---|---|
+| `total` | How many instructions are kept; the oldest has index `total` - 1. |
+| `seconds` | The seconds kept. |
+| `instructions` | Newest first, each with its `index`, the cycle of its fetch, the registers before it, and its bytes and disassembly as they were when it ran. |
+
+Errors: `no_machine`, `bad_request`.
+
+### `debug.trace.find`
+
+Searches the history back from index `from`, the newest first, for the instructions that meet
+every condition given, on the emulator's side: a minute of history, some 20 million instructions,
+is searched through in about a second.
+
+| Param | Meaning |
+|---|---|
+| `pc` | The instruction's address. |
+| `pc_start`, `pc_end` | Instead of `pc`, both: the address is at least `pc_start` and below `pc_end`. |
+| `disasm_contains` | Its disassembly, as it ran, holds this text, case aside: `STA $80`, `E812`, `JSR`. |
+| `a`, `x`, `y`, `s` | The register held this before the instruction. |
+| `from` | The index to search back from; 0, the newest, when left out. |
+| `limit` | The most matches to answer, 1 to 4096; 32 when left out. |
+
+```json
+{"id":9,"method":"debug.trace.find","params":{"pc":"$E61B","limit":2}}
+{"id":9,"ok":true,"result":{"total":339009,"matches":[
+  {"index":5639,"pc":58907,"cycle":3307506,"a":0,"x":0,"y":10,"s":242,"p":50,"bytes_hex":"48","disasm":"PHA"},
+  {"index":11280,"pc":58907,"cycle":3290867,"a":0,"x":0,"y":10,"s":242,"p":50,"bytes_hex":"48","disasm":"PHA"}],
+  "next_from":11281}}
+```
+
+`matches` are as `debug.trace` answers its instructions, newest first. `next_from` is where to go
+on searching back, with the same conditions, or `null` when the search reached the oldest kept.
+Indices count back from the instruction the PET stands at, so they hold while it stands still.
+
+Errors: `no_machine`, `bad_request`.
+
+### `debug.trace.configure`
+
+| Param | Meaning |
+|---|---|
+| `seconds` | The seconds of the PET's time the history keeps, 0.01 to 60. |
+
+Applies to the PET running and to every one powered up after it. A second is some 300,000
+instructions, 5 MB. Answers `{"seconds"}`.
+
+Errors: `bad_request`.
+
+### `io.get_state`
+
+Takes no parameters. Answers the I/O chips' registers, read without a read's side effects:
+
+| Field | Meaning |
+|---|---|
+| `pia1`, `pia2` | `port_a`, `ddr_a`, `control_a`, `port_b`, `ddr_b`, `control_b`, as written, and the control lines' outputs `ca2`, `cb2`. |
+| `via` | `registers`, the 16 as written; `t1`, `t1_latch` and `t2`, the timers as they count; `ifr` and `ier`. |
+| `irq` | Whether any of them pulls the IRQ line. |
+
+Errors: `no_machine`.
+
+### `state.save`, `state.load`, `state.list`
+
+`state.save` writes the whole PET's state to `filename`, answering `{"filename", "size"}`;
+`state.load` restores one. A `filename` without a directory is in the state directory
+(`--state-dir`, or the working directory). `state.list` answers the `.petstate` files there,
+`{"states":["a.petstate"]}`.
+
+A state holds everything a run changes: the 6502, RAM and video RAM, the PIAs, the VIA with its
+timers, the video's beam and pictures, and the keys `input.set` holds. It holds none of the ROMs,
+the breakpoints, the watchpoints, the trace or the keys the desktop application's keyboard holds.
+It is read back by the build that wrote it, into a PET with the same ROMs; any other is refused
+with `state_mismatch`, and the PET runs on as it was. Loading a state, then running, gives exactly
+the frames and memory that followed when it was saved.
+
+Errors: `no_machine`, `state_failed`, `state_mismatch`, `bad_request`.

@@ -1,5 +1,7 @@
 #include "Cpu6502.hpp"
 
+#include "machine/StateArchive.hpp"
+
 #define CHIPS_IMPL
 #include <m6502.h>
 
@@ -111,6 +113,9 @@ void Cpu6502::tick( Bus& bus )
     correctUnstableStore( mState->cpu, pins );
   }
   std::uint16_t const address = M6502_GET_ADDR( pins );
+  // The pins are the CPU's while the access is made, so that the bus can ask
+  // what it is: an opcode fetch, a read or a write.
+  mState->pins = pins;
   if ( ( pins & M6502_RW ) != 0 )
   {
     M6502_SET_DATA( pins, static_cast<std::uint64_t>( bus.read( address ) ) );
@@ -122,9 +127,50 @@ void Cpu6502::tick( Bus& bus )
   mState->pins = pins;
 }
 
+namespace
+{
+
+template <class Archive, class Core>
+void serializeCore( Archive& archive, Core& cpu, std::uint64_t& pins )
+{
+  archive( cpu.IR );
+  archive( cpu.PC );
+  archive( cpu.AD );
+  archive( cpu.A );
+  archive( cpu.X );
+  archive( cpu.Y );
+  archive( cpu.S );
+  archive( cpu.P );
+  archive( cpu.PINS );
+  archive( cpu.irq_pip );
+  archive( cpu.nmi_pip );
+  archive( cpu.brk_flags );
+  archive( cpu.bcd_enabled );
+  archive( pins );
+}
+
+} // namespace
+
+void Cpu6502::serialize( machine::StateWriter& archive ) const
+{
+  m6502_t const& cpu = mState->cpu;
+  std::uint64_t pins = mState->pins;
+  serializeCore( archive, cpu, pins );
+}
+
+void Cpu6502::serialize( machine::StateReader& archive )
+{
+  serializeCore( archive, mState->cpu, mState->pins );
+}
+
 bool Cpu6502::sync() const
 {
   return ( mState->pins & M6502_SYNC ) != 0;
+}
+
+std::uint16_t Cpu6502::programCounter() const
+{
+  return mState->cpu.PC;
 }
 
 bool Cpu6502::interrupting() const

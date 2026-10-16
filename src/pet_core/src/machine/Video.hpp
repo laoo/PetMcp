@@ -44,7 +44,36 @@ public:
   /// Pictures completed since power-up.
   [[nodiscard]] std::int64_t picturesDrawn() const;
 
+  /// The picture being drawn and the last complete one are kept a bit a dot.
+  template <class Archive>
+  void serialize( Archive& archive )
+  {
+    std::vector<std::uint8_t> drawing;
+    std::vector<std::uint8_t> complete;
+    if constexpr ( !Archive::READING )
+    {
+      drawing = packDots();
+      complete = packPicture();
+    }
+    archive( drawing );
+    archive( complete );
+    archive( mPicturesDrawn );
+    archive( mDisplayEnabled );
+    archive( mOffScreen );
+    archive( mTextSet );
+    if constexpr ( Archive::READING )
+    {
+      unpack( drawing, complete );
+    }
+  }
+
 private:
+  [[nodiscard]] std::vector<std::uint8_t> packDots() const;
+  [[nodiscard]] std::vector<std::uint8_t> packPicture() const;
+  /// Takes the picture being drawn and the last complete one back from their
+  /// bits; bits of the wrong size leave them as they were.
+  void unpack( std::vector<std::uint8_t> const& drawing, std::vector<std::uint8_t> const& complete );
+
   std::span<std::uint8_t const> mCharacters;
   std::span<std::uint8_t const> mVideoRam;
   /// The picture being drawn, a byte a dot.

@@ -19,6 +19,8 @@ void addEmuMethods( Dispatcher& dispatcher, Emulator& emulator )
           status["running"] = true;
           status["cycles"] = machine->now();
           status["frame"] = machine->frame();
+          // A client attaching to a window that stopped by itself sees where.
+          status.update( stopJson( machine->lastRun() ) );
         }
         else
         {

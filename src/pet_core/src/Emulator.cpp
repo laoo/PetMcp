@@ -25,6 +25,7 @@ std::expected<void, std::string> Emulator::powerUp()
     return std::unexpected( roms.error() );
   }
   mMachine = std::make_unique<machine::Machine>( std::move( *roms ) );
+  mMachine->setTraceCycles( mTraceCycles );
   ++mPowerUps;
   mPowerUpError.clear();
   return {};
@@ -49,6 +50,20 @@ machine::Machine* Emulator::machine()
 machine::Machine const* Emulator::machine() const
 {
   return mMachine.get();
+}
+
+void Emulator::setTraceCycles( std::uint64_t cycles )
+{
+  mTraceCycles = cycles;
+  if ( mMachine )
+  {
+    mMachine->setTraceCycles( cycles );
+  }
+}
+
+std::uint64_t Emulator::traceCycles() const
+{
+  return mTraceCycles;
 }
 
 std::uint64_t Emulator::powerUps() const

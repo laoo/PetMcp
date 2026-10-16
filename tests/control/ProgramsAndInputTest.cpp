@@ -61,6 +61,49 @@ TEST_CASE( "a typed command runs, and its answer is on the screen", "[roms][cont
   CHECK( screen( dispatcher ).contains( "\n 4      " ) );
 }
 
+TEST_CASE( "the history is counted back from now, and searched back on the emulator's side", "[roms][control]" )
+{
+  pet::Emulator emulator{ withRoms() };
+  if ( emulator.machine() == nullptr )
+  {
+    SKIP( "no ROMs in " << PET_TEST_ROM_DIR );
+  }
+  pet::control::Dispatcher const dispatcher{ emulator };
+  call( dispatcher, "emu.run_frames", { { "count", 200 } } );
+
+  // Index 0 is the instruction the PET stands at.
+  auto const newest = call( dispatcher, "debug.trace", { { "count", 2 } } ).at( "instructions" );
+  CHECK( newest.at( 0 ).at( "index" ) == 0 );
+  CHECK( newest.at( 0 ).at( "pc" ) == call( dispatcher, "cpu.get_state" ).at( "pc" ) );
+  CHECK( newest.at( 1 ).at( "cycle" ).get<std::uint64_t>() < newest.at( 0 ).at( "cycle" ).get<std::uint64_t>() );
+
+  // The kernal's interrupt entry, once a frame, newest first: a frame apart,
+  // give or take the cycles of the instruction the interrupt waits for.
+  auto const aFrameApart = []( pet::control::Json const& later, pet::control::Json const& earlier )
+  {
+    std::uint64_t const apart = later.at( "cycle" ).get<std::uint64_t>() - earlier.at( "cycle" ).get<std::uint64_t>();
+    return apart + 7 >= 16640 && apart <= 16640 + 7;
+  };
+  auto const entries = call( dispatcher, "debug.trace.find", { { "pc", "$E61B" }, { "limit", 3 } } );
+  auto const& matches = entries.at( "matches" );
+  REQUIRE( matches.size() == 3 );
+  for ( std::size_t i = 0; i + 1 < matches.size(); ++i )
+  {
+    CHECK( aFrameApart( matches.at( i ), matches.at( i + 1 ) ) );
+    CHECK( matches.at( i ).at( "index" ).get<std::uint64_t>() <
+           matches.at( i + 1 ).at( "index" ).get<std::uint64_t>() );
+  }
+  // Going on from where it stopped finds the next one back.
+  auto const more = call(
+      dispatcher, "debug.trace.find", { { "pc", "$E61B" }, { "limit", 1 }, { "from", entries.at( "next_from" ) } } );
+  CHECK( aFrameApart( matches.at( 2 ), more.at( "matches" ).at( 0 ) ) );
+
+  // By the disassembly as it ran: the keyboard's columns read.
+  auto const reads = call( dispatcher, "debug.trace.find", { { "disasm_contains", "lda $e812" }, { "limit", 1 } } );
+  REQUIRE( reads.at( "matches" ).size() == 1 );
+  CHECK( reads.at( "matches" ).at( 0 ).at( "bytes_hex" ) == "ad12e8" );
+}
+
 TEST_CASE( "a program loaded with run runs, and sees the keys input.set holds", "[roms][control]" )
 {
   pet::Emulator emulator{ withRoms() };

@@ -62,6 +62,8 @@ private:
   void serveRequests();
   /// Hands the machine's picture on to takePicture(), if it has a new one.
   void publishPicture();
+  /// Runs a frame, and pauses where a breakpoint or a watchpoint stopped it.
+  void runFrame( machine::Machine& machine );
 
   Emulator mEmulator;
   control::Dispatcher mDispatcher;

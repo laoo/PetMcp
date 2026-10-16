@@ -53,6 +53,11 @@ public:
   /// Why there is no machine; empty when there is one.
   [[nodiscard]] std::string const& powerUpError() const;
 
+  /// How many cycles the history of execution keeps, this machine's and every
+  /// one powered up after it.
+  void setTraceCycles( std::uint64_t cycles );
+  [[nodiscard]] std::uint64_t traceCycles() const;
+
   /// Whether the frontend's own run is paused. The emulator runs only when it
   /// is asked to; the desktop application runs it frame after frame, unless
   /// this is set.
@@ -64,6 +69,7 @@ private:
   bool mPaused{};
   std::unique_ptr<machine::Machine> mMachine;
   std::uint64_t mPowerUps{};
+  std::uint64_t mTraceCycles{ machine::Machine::DEFAULT_TRACE_CYCLES };
   std::string mPowerUpError;
 };
 

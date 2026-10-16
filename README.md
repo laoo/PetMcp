@@ -32,6 +32,9 @@ build/release/src/pet_app/petmcp --rom-dir /path/to/vice/data/PET --card-dir /pa
 options, opened with File > Open program or dropped on the window is loaded and run once the PET is
 at READY. The ROM directory can also be chosen with File > Choose ROM directory, and is then kept.
 
+View opens the debugger's windows: CPU (registers, code, breakpoints, stepping), History (every
+instruction of the last seconds, as it ran, searched by PC or disassembly, the seconds set there), Memory and I/O.
+
 The host keyboard types as a PET's would: what a key makes on the host appears on the PET, a
 letter's SHIFT is the PET's SHIFT (so capitals make graphics in the graphics set), and the keys
 that make no character, RETURN, INST/DEL, CLR/HOME, the cursor keys, RUN/STOP, RVS and the left

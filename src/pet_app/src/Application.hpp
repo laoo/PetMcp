@@ -1,5 +1,6 @@
 #pragma once
 
+#include "DebuggerWindows.hpp"
 #include "EmulationThread.hpp"
 #include "GpuTexture.hpp"
 #include "HostKeyboard.hpp"
@@ -102,6 +103,14 @@ private:
   std::unique_ptr<server::McpHttpServer> mMcpHttp;
   std::unique_ptr<ScreenRenderer> mRenderer;
   HostKeyboard mKeyboard;
+  std::unique_ptr<CpuWindow> mCpu;
+  std::unique_ptr<MemoryWindow> mMemory;
+  std::unique_ptr<IoWindow> mIo;
+  std::unique_ptr<HistoryWindow> mHistory;
+  bool mShowHistory{};
+  bool mShowCpu{};
+  bool mShowMemory{};
+  bool mShowIo{};
   /// Where the display settings, the keyboard map and the application's own
   /// settings are kept, beside imgui.ini; empty when they are not kept.
   std::filesystem::path mDisplayPath;

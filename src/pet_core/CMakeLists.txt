@@ -4,12 +4,14 @@ add_library( pet_core
   src/Version.cpp
   src/control/Dispatcher.cpp
   src/control/CpuMethods.cpp
+  src/control/DebugMethods.cpp
   src/control/EmuMethods.cpp
   src/control/InputMethods.cpp
   src/control/MemoryMethods.cpp
   src/control/Params.cpp
   src/control/ProgramMethods.cpp
   src/control/RunMethods.cpp
+  src/control/StateMethods.cpp
   src/control/VideoMethods.cpp
   src/cpu/Cpu6502.cpp
   src/cpu/Disassembler.cpp
@@ -19,6 +21,7 @@ add_library( pet_core
   src/machine/Programs.cpp
   src/machine/Roms.cpp
   src/machine/Screen.cpp
+  src/machine/TraceHistory.cpp
   src/machine/Via6522.cpp
   src/machine/Video.cpp )
 

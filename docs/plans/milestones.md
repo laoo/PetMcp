@@ -17,16 +17,6 @@ A session takes work by saying *build M<n> of docs/plans/milestones.md*. Every t
 Every milestone ends with an **exit** condition that can be checked without a person looking at
 a screen.
 
-## M4: The debugger and save states
-
-- `debug.breakpoint.*`, `debug.watchpoint.*`, `debug.trace`; a run stops at them, and the
-  window pauses.
-- Windows: CPU (registers and disassembly), memory, VIA and PIAs.
-- `state.save`, `state.load`, `state.list`: tagged chunks per device; rewind in the desktop.
-
-**Exit:** a state saved mid-program and loaded runs on to the same frame sums as the run that
-saved it.
-
 ## M5: Sound and the expansion board
 
 - VIA CB2 sound, as VICE's `petsound.c` makes it.

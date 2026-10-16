@@ -112,6 +112,40 @@ public:
 
   [[nodiscard]] Snapshot snapshot( Clock now );
 
+  template <class Archive>
+  void serialize( Archive& archive )
+  {
+    archive( mVia );
+    archive( mIfr );
+    archive( mIer );
+    archive( mTal );
+    archive( mT2cl );
+    archive( mT2ch );
+    archive( mT1reload );
+    archive( mT2zero );
+    archive( mT1zero );
+    archive( mT2xx00 );
+    archive( mT1pb7 );
+    archive( mOldpa );
+    archive( mOldpb );
+    archive( mCa2OutState );
+    archive( mCb1InState );
+    archive( mCb1OutState );
+    archive( mCb2InState );
+    archive( mCb2OutState );
+    archive( mCb1IsInput );
+    archive( mCb2IsInput );
+    archive( mShiftState );
+    archive( mT2IrqAllowed );
+    archive( mLastRead );
+    mIrq.serialize( archive );
+    archive( mT1ZeroAlarm );
+    archive( mT2ZeroAlarm );
+    archive( mT2UnderflowAlarm );
+    archive( mT2ShiftAlarm );
+    archive( mPhi2SrAlarm );
+  }
+
 private:
   /// One of VICE's alarms: due at a cycle, or not set.
   struct Alarm

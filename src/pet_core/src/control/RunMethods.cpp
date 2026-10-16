@@ -28,18 +28,47 @@ std::expected<std::uint64_t, Error> countOf( Json const& params )
 
 } // namespace
 
+Json stopJson( machine::RunResult const& result )
+{
+  if ( result.reason == machine::StopReason::BREAKPOINT )
+  {
+    return Json{ { "breakpoint", { { "address", result.breakpoint } } } };
+  }
+  if ( result.reason == machine::StopReason::WATCHPOINT )
+  {
+    machine::WatchHit const& hit = result.watchpoint;
+    return Json{ { "watchpoint",
+                   { { "address", hit.address },
+                     { "access", hit.write ? "write" : "read" },
+                     { "value", hit.value },
+                     { "pc", hit.pc } } } };
+  }
+  return Json::object();
+}
+
 Json runJson( machine::RunResult const& result )
 {
   char const* reason = "completed";
-  if ( result.reason == machine::StopReason::CONDITION )
+  switch ( result.reason )
   {
+  case machine::StopReason::COMPLETED:
+    break;
+  case machine::StopReason::CONDITION:
     reason = "condition_met";
-  }
-  else if ( result.reason == machine::StopReason::TIMEOUT )
-  {
+    break;
+  case machine::StopReason::TIMEOUT:
     reason = "timeout";
+    break;
+  case machine::StopReason::BREAKPOINT:
+    reason = "breakpoint";
+    break;
+  case machine::StopReason::WATCHPOINT:
+    reason = "watchpoint";
+    break;
   }
-  return Json{ { "reason", reason }, { "cycles_executed", result.cycles }, { "frames_executed", result.frames } };
+  Json answer{ { "reason", reason }, { "cycles_executed", result.cycles }, { "frames_executed", result.frames } };
+  answer.update( stopJson( result ) );
+  return answer;
 }
 
 void addRunMethods( Dispatcher& dispatcher, Emulator& emulator )

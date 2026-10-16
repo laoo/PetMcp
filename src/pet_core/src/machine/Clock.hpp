@@ -60,6 +60,14 @@ public:
     return clock >= mFrom ? mLevel : mBefore;
   }
 
+  template <class Archive>
+  void serialize( Archive& archive )
+  {
+    archive( mLevel );
+    archive( mBefore );
+    archive( mFrom );
+  }
+
 private:
   bool mLevel{};
   bool mBefore{};

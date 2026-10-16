@@ -6,6 +6,7 @@ add_executable( pet_tests
   cpu/Cpu6502Test.cpp
   machine/KeyboardTest.cpp
   machine/MachineTest.cpp
+  machine/StateAndDebugTest.cpp
   machine/TraceTest.cpp
   machine/Via6522Test.cpp
   server/JsonLinesServerTest.cpp

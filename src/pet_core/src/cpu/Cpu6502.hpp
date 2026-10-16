@@ -8,6 +8,12 @@
 #include <cstdint>
 #include <memory>
 
+namespace pet::machine
+{
+class StateWriter;
+class StateReader;
+} // namespace pet::machine
+
 namespace pet::cpu
 {
 
@@ -79,7 +85,8 @@ public:
   void tick( Bus& bus );
 
   /// Whether the last tick's access was an opcode fetch: an instruction, or
-  /// an interrupt sequence in its place, begins with it.
+  /// an interrupt sequence in its place, begins with it. During a tick's
+  /// access, whether that access is one.
   [[nodiscard]] bool sync() const;
   /// Whether the opcode the last tick fetched will be dropped for an
   /// interrupt or reset sequence, which begins with that fetch. The 6502 has
@@ -92,6 +99,12 @@ public:
   /// The byte the last tick's access carried, read or written.
   [[nodiscard]] std::uint8_t data() const;
 
+  /// The program counter as the core holds it within an instruction: during
+  /// an access, the access reads the instruction stream exactly when its
+  /// address is this or the one before, operands and the dummy reads at the
+  /// next opcode alike.
+  [[nodiscard]] std::uint16_t programCounter() const;
+
   /// The registers. They are the programmer's whole state only where sync()
   /// holds: then `pc` is the address of the opcode just fetched.
   [[nodiscard]] Registers registers() const;
@@ -100,6 +113,10 @@ public:
   /// `registers.pc` is fetched from `bus` at once, as that boundary's fetch
   /// cycle, and the next tick is the instruction's second cycle.
   void setRegisters( Registers const& registers, Bus& bus );
+
+  /// Everything the core keeps between two ticks, its pins included.
+  void serialize( machine::StateWriter& archive ) const;
+  void serialize( machine::StateReader& archive );
 
 private:
   struct State;

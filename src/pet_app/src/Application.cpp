@@ -152,6 +152,18 @@ Application::Application( SDL_Window* window, SDL_GPUDevice* device, Settings se
     }
   }
 
+  auto const requester = [this]( std::string const& method, control::Json params )
+  { return request( method, std::move( params ) ); };
+  mCpu = std::make_unique<CpuWindow>( requester );
+  mMemory = std::make_unique<MemoryWindow>( requester );
+  mIo = std::make_unique<IoWindow>( requester );
+  mHistory = std::make_unique<HistoryWindow>( requester,
+                                              [this]( double seconds ) { keepSetting( "history_seconds", seconds ); } );
+  if ( mSettings.contains( "history_seconds" ) && mSettings.at( "history_seconds" ).is_number() )
+  {
+    static_cast<void>( request( "debug.trace.configure", { { "seconds", mSettings.at( "history_seconds" ) } } ) );
+  }
+
   float const scale = SDL_GetDisplayContentScale( SDL_GetPrimaryDisplay() );
   ImGui::StyleColorsDark();
   ImGui::GetStyle().ScaleAllSizes( scale );
@@ -171,6 +183,10 @@ Application::~Application()
   ImGui_ImplSDL3_Shutdown();
   ImGui_ImplSDLGPU3_Shutdown();
   ImGui::DestroyContext();
+  mCpu.reset();
+  mMemory.reset();
+  mIo.reset();
+  mHistory.reset();
   mScreen.reset();
   mRenderer.reset();
   // The servers hand requests to the emulation thread: they go first.
@@ -393,6 +409,10 @@ void Application::drawInterface()
   drawScreenWindow();
   drawStatusWindow();
   drawInputWindow();
+  mCpu->draw( mShowCpu );
+  mMemory->draw( mShowMemory );
+  mIo->draw( mShowIo );
+  mHistory->draw( mShowHistory );
 
   if ( mShowImguiDemo )
   {
@@ -440,6 +460,7 @@ void Application::drawMenuBar()
     {
       static_cast<void>( request( "emu.reset", { { "power", true } } ) );
     }
+
     ImGui::EndMenu();
   }
   if ( ImGui::BeginMenu( "Display" ) )
@@ -451,6 +472,10 @@ void Application::drawMenuBar()
   {
     ImGui::MenuItem( STATUS_WINDOW, nullptr, &mShowStatus );
     ImGui::MenuItem( INPUT_WINDOW, nullptr, &mShowInput );
+    ImGui::MenuItem( "CPU", nullptr, &mShowCpu );
+    ImGui::MenuItem( "History", nullptr, &mShowHistory );
+    ImGui::MenuItem( "Memory", nullptr, &mShowMemory );
+    ImGui::MenuItem( "I/O", nullptr, &mShowIo );
     ImGui::Separator();
     ImGui::MenuItem( "ImGui demo", nullptr, &mShowImguiDemo );
     ImGui::EndMenu();
@@ -602,6 +627,18 @@ void Application::drawStatusWindow()
       if ( result.at( "paused" ) == true )
       {
         ImGui::TextUnformatted( "Paused" );
+      }
+      if ( result.contains( "breakpoint" ) )
+      {
+        ImGui::Text( "Stopped at the breakpoint at $%04X", result.at( "breakpoint" ).at( "address" ).get<unsigned>() );
+      }
+      if ( result.contains( "watchpoint" ) )
+      {
+        auto const& watched = result.at( "watchpoint" );
+        ImGui::Text( "Stopped after a %s of $%04X by $%04X",
+                     watched.at( "access" ).get_ref<std::string const&>().c_str(),
+                     watched.at( "address" ).get<unsigned>(),
+                     watched.at( "pc" ).get<unsigned>() );
       }
     }
     if ( !mLastError.empty() )

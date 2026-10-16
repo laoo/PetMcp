@@ -2,12 +2,19 @@
 
 #include "Clock.hpp"
 #include "Pia6520.hpp"
+#include "StateArchive.hpp"
+#include "TraceHistory.hpp"
 #include "Via6522.hpp"
 #include "Video.hpp"
 #include "cpu/Cpu6502.hpp"
 
+#include <miniz.h>
+
+#include <algorithm>
 #include <array>
+#include <bitset>
 #include <cassert>
+#include <optional>
 #include <utility>
 #include <vector>
 
@@ -51,6 +58,10 @@ std::vector<std::uint8_t> powerUpVideoRam()
   }
   return ram;
 }
+
+/// What a state begins with, and the version of its layout as a whole.
+constexpr std::array<char, 8> STATE_MAGIC{ 'P', 'E', 'T', 'S', 'T', 'A', 'T', 'E' };
+constexpr std::uint32_t STATE_VERSION = 1;
 
 /// The cycle of the first opcode fetch after power-up, as VICE counts it: its
 /// trace of a power-up shows the first instruction at clock 6.
@@ -168,12 +179,20 @@ struct Machine::Board final : cpu::Bus
   std::uint8_t read( std::uint16_t address ) override
   {
     lastBus = load( address, false );
+    if ( !watchpoints.empty() )
+    {
+      watch( address, false, lastBus );
+    }
     return lastBus;
   }
 
   void write( std::uint16_t address, std::uint8_t value ) override
   {
     lastBus = value;
+    if ( !watchpoints.empty() )
+    {
+      watch( address, true, value );
+    }
     if ( address < RAM_SIZE )
     {
       ram[address] = value;
@@ -199,6 +218,32 @@ struct Machine::Board final : cpu::Bus
       }
     }
     // The ROMs and the empty sockets ignore a write.
+  }
+
+  /// Notes the first access a watchpoint watches: a data access, not a read
+  /// of the instruction stream.
+  void watch( std::uint16_t address, bool isWrite, std::uint8_t value )
+  {
+    if ( watchHit || cpu.sync() )
+    {
+      return;
+    }
+    std::uint16_t const pc = cpu.programCounter();
+    if ( !isWrite && ( address == pc || address == static_cast<std::uint16_t>( pc - 1 ) ) )
+    {
+      return;
+    }
+    for ( Watchpoint const& watchpoint : watchpoints )
+    {
+      bool const inRange = std::uint32_t{ address } >= watchpoint.address &&
+                           std::uint32_t{ address } - watchpoint.address < watchpoint.size;
+      auto const wanted = static_cast<unsigned>( isWrite ? Access::WRITE : Access::READ );
+      if ( inRange && ( static_cast<unsigned>( watchpoint.access ) & wanted ) != 0 )
+      {
+        watchHit = WatchHit{ .address = address, .write = isWrite, .value = value, .pc = currentPc };
+        return;
+      }
+    }
   }
 
   /// A read of `address`; a peek has no side effects.
@@ -289,12 +334,54 @@ struct Machine::Board final : cpu::Bus
     ++clock;
   }
 
+  /// Lets go of the instructions older than the history keeps.
+  void forgetOldTrace()
+  {
+    if ( clock > traceCycles )
+    {
+      trace.forgetBefore( clock - traceCycles );
+    }
+  }
+
+  /// What the machine does at an instruction boundary: notes the instruction,
+  /// and answers why the run stops there, if it does.
+  std::optional<StopReason> atBoundary()
+  {
+    cpu::Registers const registers = cpu.registers();
+    currentPc = registers.pc;
+    trace.push( TracedInstruction{ .cycle = clock - 1,
+                                   .registers = CpuState{ .pc = registers.pc,
+                                                          .a = registers.a,
+                                                          .x = registers.x,
+                                                          .y = registers.y,
+                                                          .s = registers.s,
+                                                          .p = registers.p },
+                                   .bytes = { cpu.data(),
+                                              load( static_cast<std::uint16_t>( registers.pc + 1 ), true ),
+                                              load( static_cast<std::uint16_t>( registers.pc + 2 ), true ) } } );
+    forgetOldTrace();
+    if ( instructionHook )
+    {
+      instructionHook( *owner );
+    }
+    if ( watchHit )
+    {
+      return StopReason::WATCHPOINT;
+    }
+    if ( breakpointCount != 0 && breakpointAt.test( currentPc ) )
+    {
+      return StopReason::BREAKPOINT;
+    }
+    return std::nullopt;
+  }
+
   template <typename Done>
   RunResult run( Done const& done, std::uint64_t limit )
   {
     Clock const startClock = clock;
     std::uint64_t const startFrame = frame;
-    StopReason reason = StopReason::TIMEOUT;
+    watchHit.reset();
+    RunResult result{ .reason = StopReason::TIMEOUT };
     for ( ;; )
     {
       step();
@@ -302,13 +389,23 @@ struct Machine::Board final : cpu::Bus
       {
         continue;
       }
-      if ( instructionHook )
+      if ( auto const stop = atBoundary() )
       {
-        instructionHook( *owner );
+        result.reason = *stop;
+        if ( *stop == StopReason::WATCHPOINT )
+        {
+          result.watchpoint = watchHit.value_or( WatchHit{} );
+          watchHit.reset();
+        }
+        else
+        {
+          result.breakpoint = currentPc;
+        }
+        break;
       }
       if ( done() )
       {
-        reason = StopReason::CONDITION;
+        result.reason = StopReason::CONDITION;
         break;
       }
       if ( clock - startClock >= limit )
@@ -316,7 +413,63 @@ struct Machine::Board final : cpu::Bus
         break;
       }
     }
-    return RunResult{ .reason = reason, .cycles = clock - startClock, .frames = frame - startFrame };
+    result.cycles = clock - startClock;
+    result.frames = frame - startFrame;
+    lastRun = result;
+    return result;
+  }
+
+  /// RAM, the keys the protocol holds, and the machine's own counters.
+  struct Memory
+  {
+    Board& board;
+
+    template <class Archive>
+    void serialize( Archive& archive )
+    {
+      archive( board.ram );
+      archive( board.videoRam );
+      archive( board.keys );
+      archive( board.clock );
+      archive( board.frame );
+      archive( board.lastBus );
+      archive( board.textSet );
+    }
+  };
+
+  struct Cpu
+  {
+    cpu::Cpu6502& cpu;
+
+    template <class Archive>
+    void serialize( Archive& archive )
+    {
+      cpu.serialize( archive );
+    }
+  };
+
+  /// The whole state, in either direction.
+  template <class Archive>
+  void serialize( Archive& archive )
+  {
+    Memory memory{ *this };
+    Cpu processor{ cpu };
+    archive.chunk( fourCc( "MEM " ), 1, memory );
+    archive.chunk( fourCc( "CPU " ), 1, processor );
+    archive.chunk( fourCc( "PIA1" ), 1, pia1 );
+    archive.chunk( fourCc( "PIA2" ), 1, pia2 );
+    archive.chunk( fourCc( "VIA " ), 1, via );
+    archive.chunk( fourCc( "VID " ), 1, video );
+  }
+
+  [[nodiscard]] std::uint32_t romsCrc() const
+  {
+    mz_ulong crc = MZ_CRC32_INIT;
+    for ( auto const* rom : { &roms.basic, &roms.editor, &roms.kernal, &roms.characters } )
+    {
+      crc = mz_crc32( crc, rom->data(), rom->size() );
+    }
+    return static_cast<std::uint32_t>( crc );
   }
 
   Machine const* owner{};
@@ -340,7 +493,28 @@ struct Machine::Board final : cpu::Bus
   std::uint8_t lastBus{};
   bool textSet{ true };
   std::function<void( Machine const& )> instructionHook;
+
+  /// The instruction the 6502 is in, which a watched access is reported of.
+  std::uint16_t currentPc{};
+  std::bitset<0x10000> breakpointAt;
+  std::size_t breakpointCount{};
+  std::vector<Watchpoint> watchpoints;
+  std::optional<WatchHit> watchHit;
+  TraceHistory trace;
+  std::uint64_t traceCycles{ DEFAULT_TRACE_CYCLES };
+  RunResult lastRun{};
 };
+
+/// A run that went the whole way it was asked to, by its count or its limit,
+/// is completed; one a breakpoint or a watchpoint stopped says so.
+void Machine::completed( RunResult& result )
+{
+  if ( result.reason == StopReason::CONDITION || result.reason == StopReason::TIMEOUT )
+  {
+    result.reason = StopReason::COMPLETED;
+    mBoard->lastRun = result;
+  }
+}
 
 Machine::Machine( Roms roms ) : mBoard{ std::make_unique<Board>( std::move( roms ) ) }
 {
@@ -368,7 +542,7 @@ void Machine::reset()
 RunResult Machine::runCycles( std::uint64_t count )
 {
   RunResult result = mBoard->run( [] { return false; }, count );
-  result.reason = StopReason::COMPLETED;
+  completed( result );
   return result;
 }
 
@@ -376,13 +550,196 @@ RunResult Machine::runFrames( std::uint64_t count )
 {
   std::uint64_t const target = mBoard->frame + count;
   RunResult result = mBoard->run( [&] { return mBoard->frame >= target; }, ~std::uint64_t{} );
-  result.reason = StopReason::COMPLETED;
+  completed( result );
   return result;
 }
 
 RunResult Machine::runUntil( std::function<bool( Machine const& )> const& condition, std::uint64_t timeoutCycles )
 {
   return mBoard->run( [&] { return condition( *this ); }, timeoutCycles );
+}
+
+RunResult Machine::step( std::uint64_t count )
+{
+  std::uint64_t instructions = 0;
+  RunResult result = mBoard->run( [&] { return ++instructions >= count; }, ~std::uint64_t{} );
+  completed( result );
+  return result;
+}
+
+void Machine::addBreakpoint( std::uint16_t address )
+{
+  if ( !mBoard->breakpointAt.test( address ) )
+  {
+    mBoard->breakpointAt.set( address );
+    ++mBoard->breakpointCount;
+  }
+}
+
+bool Machine::removeBreakpoint( std::uint16_t address )
+{
+  if ( !mBoard->breakpointAt.test( address ) )
+  {
+    return false;
+  }
+  mBoard->breakpointAt.reset( address );
+  --mBoard->breakpointCount;
+  return true;
+}
+
+std::vector<std::uint16_t> Machine::breakpoints() const
+{
+  std::vector<std::uint16_t> addresses;
+  for ( std::size_t address = 0; address < mBoard->breakpointAt.size() && addresses.size() < mBoard->breakpointCount;
+        ++address )
+  {
+    if ( mBoard->breakpointAt.test( address ) )
+    {
+      addresses.push_back( static_cast<std::uint16_t>( address ) );
+    }
+  }
+  return addresses;
+}
+
+void Machine::addWatchpoint( Watchpoint watchpoint )
+{
+  removeWatchpoint( watchpoint.address );
+  mBoard->watchpoints.push_back( watchpoint );
+  std::ranges::sort( mBoard->watchpoints, {}, &Watchpoint::address );
+}
+
+bool Machine::removeWatchpoint( std::uint16_t address )
+{
+  return std::erase_if( mBoard->watchpoints, [address]( Watchpoint const& w ) { return w.address == address; } ) != 0;
+}
+
+std::vector<Watchpoint> Machine::watchpoints() const
+{
+  return mBoard->watchpoints;
+}
+
+void Machine::setTraceCycles( std::uint64_t cycles )
+{
+  mBoard->traceCycles = cycles;
+  mBoard->forgetOldTrace();
+}
+
+std::uint64_t Machine::traceCycles() const
+{
+  return mBoard->traceCycles;
+}
+
+std::size_t Machine::traceLength() const
+{
+  return mBoard->trace.size();
+}
+
+TracedInstruction Machine::tracedAt( std::size_t index ) const
+{
+  return mBoard->trace.at( index );
+}
+
+std::vector<TracedInstruction> Machine::trace( std::size_t start, std::size_t count ) const
+{
+  TraceHistory const& kept = mBoard->trace;
+  start = std::min( start, kept.size() );
+  count = std::min( count, kept.size() - start );
+  std::vector<TracedInstruction> instructions;
+  instructions.reserve( count );
+  for ( std::size_t i = 0; i < count; ++i )
+  {
+    instructions.push_back( kept.at( start + i ) );
+  }
+  return instructions;
+}
+
+namespace
+{
+
+PiaState stateOf( Pia6520::Snapshot const& pia )
+{
+  return PiaState{ .portA = pia.portA,
+                   .ddrA = pia.ddrA,
+                   .controlA = pia.controlA,
+                   .portB = pia.portB,
+                   .ddrB = pia.ddrB,
+                   .controlB = pia.controlB,
+                   .ca2 = pia.ca2,
+                   .cb2 = pia.cb2 };
+}
+
+} // namespace
+
+IoState Machine::io() const
+{
+  Board& board = *mBoard;
+  Via6522::Snapshot const via = board.via.snapshot( board.clock );
+  Clock const last = board.clock - 1;
+  return IoState{ .pia1 = stateOf( board.pia1.snapshot() ),
+                  .pia2 = stateOf( board.pia2.snapshot() ),
+                  .via = ViaState{ .registers = via.registers,
+                                   .t1 = via.t1,
+                                   .t1Latch = via.t1Latch,
+                                   .t2 = via.t2,
+                                   .ifr = via.ifr,
+                                   .ier = via.ier },
+                  .irq = board.pia1.irq( last ) || board.pia2.irq( last ) || board.via.irq( last ) };
+}
+
+RunResult const& Machine::lastRun() const
+{
+  return mBoard->lastRun;
+}
+
+std::vector<std::uint8_t> Machine::saveState() const
+{
+  StateWriter writer;
+  writer( STATE_MAGIC );
+  writer( STATE_VERSION );
+  writer( mBoard->romsCrc() );
+  mBoard->serialize( writer );
+  return writer.bytes();
+}
+
+std::expected<void, std::string> Machine::loadState( std::span<std::uint8_t const> state )
+{
+  StateReader header{ state };
+  std::array<char, 8> magic{};
+  std::uint32_t version = 0;
+  std::uint32_t crc = 0;
+  header( magic );
+  header( version );
+  header( crc );
+  if ( !header.good() || magic != STATE_MAGIC )
+  {
+    return std::unexpected( std::string{ "not a PET state" } );
+  }
+  if ( version != STATE_VERSION )
+  {
+    return std::unexpected( std::string{ "a state of another build's layout" } );
+  }
+  if ( crc != mBoard->romsCrc() )
+  {
+    return std::unexpected( std::string{ "a state of a PET with other ROMs" } );
+  }
+  // Read into the machine, and back out of what it was if the state proves
+  // short or of another layout.
+  std::vector<std::uint8_t> const before = saveState();
+  StateReader reader{ state };
+  reader( magic );
+  reader( version );
+  reader( crc );
+  mBoard->serialize( reader );
+  if ( reader.good() && reader.atEnd() )
+  {
+    return {};
+  }
+  StateReader restore{ before };
+  restore( magic );
+  restore( version );
+  restore( crc );
+  mBoard->serialize( restore );
+  return std::unexpected( std::string{ "a state of another build's layout, or cut short" } );
 }
 
 void Machine::setInstructionHook( std::function<void( Machine const& )> hook )
