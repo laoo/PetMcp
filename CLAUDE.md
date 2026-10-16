@@ -45,9 +45,6 @@ handles both; do not invoke `clang-tidy` directly.
 An agent drives the emulator with the project skill, `.claude/skills/petmcp/SKILL.md`: a headless
 server, `scripts/petmcp.py`, and the methods to reach for.
 
-What to build next is [docs/plans/milestones.md](docs/plans/milestones.md); a
-session takes one milestone by name.
-
 ## Layout
 
 | Path | Contents |

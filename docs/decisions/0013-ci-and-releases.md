@@ -1,6 +1,6 @@
 # 0013: CI builds three platforms, and a tag makes a release
 
-**Status:** accepted
+**Status:** accepted; when CI runs is amended by [0019](0019-ci-runs-when-asked.md)
 
 ## Context
 

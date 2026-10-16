@@ -1,18 +1,16 @@
 name: CI
 
-# Every push and pull request builds the emulator on the three platforms, runs
-# the suite and packages what a release would hold; a tag v* publishes those
-# packages as a GitHub release. The tests that need ROMs, and the regression
-# suite's golden frames, skip here: no ROM is ever part of the repository.
-# docs/decisions/0013-ci-and-releases.md says why it is laid out this way.
+# Run by hand (Actions > CI > Run workflow), or by pushing a tag v*: it builds
+# the emulator on the three platforms, runs the suite and packages what a
+# release would hold; a tag v* also publishes those packages as a GitHub
+# release. The tests that need ROMs, and the regression suite, skip here: no
+# ROM is ever part of the repository. docs/decisions/0013-ci-and-releases.md
+# and 0019-ci-runs-when-asked.md say why it is laid out this way.
 
 on:
   push:
-    branches:
-      - "**"
     tags:
       - "v*"
-  pull_request:
   workflow_dispatch:
 
 permissions:
