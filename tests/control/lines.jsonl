@@ -1,0 +1,15 @@
+# The control protocol as JSON lines (docs/spec/control-protocol.md): framing,
+# errors and the methods that answer without a machine. lines.expect holds the answers.
+{"id":1,"method":"emu.status","params":{}}
+not json
+[1,2]
+{"method":"emu.status"}
+{"id":-1,"method":"emu.status"}
+{"id":"0x5","method":"emu.status"}
+{"id":3}
+{"id":4,"method":"emu.status","params":[]}
+{"id":5,"method":"emu.nonsense"}
+{"id":17,"method":"emu.pause"}
+{"id":18,"method":"emu.status"}
+{"id":19,"method":"emu.resume"}
+{"id":20,"method":"emu.status"}

@@ -1,0 +1,28 @@
+# Build output
+/build/
+/out/
+compile_commands.json
+.cache/
+
+# ROMs, disk images and programs are never committed; tests build their own
+*.bin
+*.d64
+*.d80
+*.d82
+*.prg
+*.zip
+/roms/
+
+# Runtime artefacts
+*.state*
+*.nv
+*.wav
+/screenshots/
+
+# OS / editors
+.DS_Store
+.vscode/
+.idea/
+
+# Python
+__pycache__/

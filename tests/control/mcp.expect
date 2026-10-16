@@ -1,0 +1,12 @@
+{"jsonrpc":"2.0","id":1,"result":{"protocolVersion":"2025-06-18","capabilities":{"tools":{"listChanged":false}},"serverInfo":{"name":"petmcp","version":"devel"},"instructions":"PetMcp emulates the Commodore PET 3032 with an SD2PET disk drive on its IEEE-488 bus. emu_status says what runs. Integers may be written as hex strings, \"0x1000\" or \"$1000\". The tools are the methods of docs/spec/control-protocol.md."}}
+{"jsonrpc":"2.0","id":2,"result":{}}
+{"jsonrpc":"2.0","id":3,"result":{"tools":[{"name":"emu_pause","description":"Pauses the PET where it runs by itself: in the desktop application, which then runs it only on request. petmcp-cli runs only on request anyway.","inputSchema":{"type":"object","properties":{}}},{"name":"emu_resume","description":"Lets the PET run by itself again, where it does: in the desktop application.","inputSchema":{"type":"object","properties":{}}},{"name":"emu_status","description":"The emulator's version, and whether the window's own run is paused.","inputSchema":{"type":"object","properties":{}}}]}}
+{"jsonrpc":"2.0","id":4,"result":{"content":[{"type":"text","text":"{\"version\":\"devel\",\"paused\":false}"}],"isError":false}}
+{"jsonrpc":"2.0","id":5,"result":{"content":[{"type":"text","text":"{}"}],"isError":false}}
+{"jsonrpc":"2.0","id":7,"error":{"code":-32602,"message":"Unknown tool: emu_nonsense"}}
+{"jsonrpc":"2.0","id":8,"error":{"code":-32602,"message":"tools/call needs a tool name"}}
+{"jsonrpc":"2.0","id":9,"error":{"code":-32601,"message":"Unknown method: resources/list"}}
+{"jsonrpc":"2.0","id":10,"error":{"code":-32600,"message":"Not a JSON-RPC 2.0 request"}}
+{"jsonrpc":"2.0","id":11,"error":{"code":-32600,"message":"Not a JSON-RPC 2.0 request"}}
+{"jsonrpc":"2.0","id":null,"error":{"code":-32700,"message":"The message is not valid JSON"}}
+{"jsonrpc":"2.0","id":12,"result":{"protocolVersion":"2025-11-25","capabilities":{"tools":{"listChanged":false}},"serverInfo":{"name":"petmcp","version":"devel"},"instructions":"PetMcp emulates the Commodore PET 3032 with an SD2PET disk drive on its IEEE-488 bus. emu_status says what runs. Integers may be written as hex strings, \"0x1000\" or \"$1000\". The tools are the methods of docs/spec/control-protocol.md."}}
