@@ -725,6 +725,25 @@ PET runs the program as it next runs.
 Errors: `no_machine`, `not_found`, `mount_failed`, `load_failed` (the screen's error line),
 `load_timeout`, `stopped`, `bad_request`.
 
+### `disk.timing`
+
+| Param | Meaning |
+|---|---|
+| `fields` | The phases to change, by name, each a number of cycles; nothing changes when left out. |
+
+How long the SD2PET takes for each phase of its firmware, in cycles of the PET's clock
+([hardware/sd2pet.md](../hardware/sd2pet.md), "Timing"). Answers every field:
+`atn_acknowledge`, `reaction`, `command_byte`, `listen_byte`, `talk_byte`, `dos_command`,
+`file_open`, `sector_read`, `buffer_wrap`, `close`. A change lasts until the PET is powered up
+again, which starts from the measured times.
+
+```json
+{"id":7,"method":"disk.timing","params":{"fields":{"listen_byte":300}}}
+{"id":7,"ok":true,"result":{"atn_acknowledge":2,"reaction":2,"command_byte":5,"listen_byte":300,"talk_byte":3,"dos_command":400,"file_open":2000,"sector_read":4000,"buffer_wrap":2,"close":500}}
+```
+
+Errors: `no_machine`, `bad_request`.
+
 ### `ieee.trace`
 
 | Param | Meaning |

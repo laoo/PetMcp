@@ -666,6 +666,16 @@ std::string Machine::diskCommand( std::string_view command )
   return mBoard->drive.command( command );
 }
 
+DriveTiming Machine::driveTiming() const
+{
+  return mBoard->drive.timing();
+}
+
+void Machine::setDriveTiming( DriveTiming const& timing )
+{
+  mBoard->drive.setTiming( timing );
+}
+
 std::size_t Machine::ieeeTraceLength() const
 {
   return mBoard->bus.traceLength();

@@ -161,6 +161,34 @@ struct IeeeEvent
   std::uint8_t driveLines{};
 };
 
+/// How long the SD2PET takes, in the PET's cycles, each a phase of its
+/// firmware. Set from the owner's measurements of the real one with the bench
+/// program (docs/hardware/sd2pet.md, "Timing").
+struct DriveTiming
+{
+  /// From ATN pulled low to the interrupt's answer: NRFD low, NDAC let go.
+  std::uint64_t atnAcknowledge{ 2 };
+  /// From a line the firmware polls changing to its next action.
+  std::uint64_t reaction{ 2 };
+  /// Taking a command byte under ATN, after DAV goes high, until it is ready
+  /// for the next.
+  std::uint64_t commandByte{ 5 };
+  /// Taking a data byte, after DAV goes high, until it is ready for the next.
+  std::uint64_t listenByte{ 320 };
+  /// Fetching the next byte to send, from NRFD high to DAV low.
+  std::uint64_t talkByte{ 3 };
+  /// Running a command received on channel 15.
+  std::uint64_t dosCommand{ 400 };
+  /// Opening a file, a directory or a buffer; not measured yet.
+  std::uint64_t fileOpen{ 2000 };
+  /// Refilling or writing out a buffer from its file: the next sector.
+  std::uint64_t sectorRead{ 4000 };
+  /// Starting a # buffer over when its last byte has been sent.
+  std::uint64_t bufferWrap{ 2 };
+  /// Closing a channel; not measured yet.
+  std::uint64_t close{ 500 };
+};
+
 /// The SD2PET as the protocol shows it.
 struct DriveState
 {
@@ -316,6 +344,8 @@ public:
   /// Runs `command`, PETSCII, as if the PET had sent it on channel 15, at
   /// once and beside the bus. Answers the error channel's message it leaves.
   std::string diskCommand( std::string_view command );
+  [[nodiscard]] DriveTiming driveTiming() const;
+  void setDriveTiming( DriveTiming const& timing );
 
   /// The IEEE-488 port's changes: ieeeTraceLength() are kept, the last
   /// 65536; the `index`th, 0 being the newest, must be below it.

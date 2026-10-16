@@ -17,17 +17,6 @@ A session takes work by saying *build M<n> of docs/plans/milestones.md*. Every t
 Every milestone ends with an **exit** condition that can be checked without a person looking at
 a screen.
 
-## M7: The SD2PET's timing
-
-- Each phase's parameter set from `../PETTest/README.md` §8.
-- The `bench` program, built for each of its three receivers, runs from a test against its own
-  D64; the per-byte, per-sector, `U1`, CHKIN and CLRCHN counts are held to the hardware's.
-- `openbench` and `switch` run as tests too, against expectations to be filled in when their
-  hardware numbers are measured ([open questions](../open-questions.md)).
-
-**Exit:** every count measured on the hardware is reproduced within the spread the hardware's
-own runs show.
-
 ## M8: Regression and release
 
 - Batch scripts with checkpoints summing the picture, memory and sound, and a regression suite

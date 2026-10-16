@@ -24,12 +24,6 @@ caches its directory) and `switch` (a `#` buffer and a file interleaved, and whe
 buffer's position survives) were built but not run on the hardware. Until they are, those
 phases follow NODISKEMU's code.
 
-## Why UNTALK costs 1230 cycles after CHRIN and 2250 after the other receivers
-
-`../PETTest/README.md` §8 measures CLRCHN at 1230 cycles with the kernal's CHRIN and at 2250
-with both receivers of its own. The device model must reproduce both; which state of the bus or
-of the drive makes the difference is not known.
-
 ## The LOAD that hung after CD
 
 On the hardware, `CD` sent through `PRINT#15` and followed by `LOAD"P",8` hung at LOADING;

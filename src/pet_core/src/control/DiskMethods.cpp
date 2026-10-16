@@ -154,10 +154,69 @@ std::string linesOf( std::uint8_t lines )
   return text;
 }
 
+/// DriveTiming's fields as the protocol names them.
+constexpr std::array<std::pair<std::string_view, std::uint64_t machine::DriveTiming::*>, 10> TIMING_FIELDS{ {
+    { "atn_acknowledge", &machine::DriveTiming::atnAcknowledge },
+    { "reaction", &machine::DriveTiming::reaction },
+    { "command_byte", &machine::DriveTiming::commandByte },
+    { "listen_byte", &machine::DriveTiming::listenByte },
+    { "talk_byte", &machine::DriveTiming::talkByte },
+    { "dos_command", &machine::DriveTiming::dosCommand },
+    { "file_open", &machine::DriveTiming::fileOpen },
+    { "sector_read", &machine::DriveTiming::sectorRead },
+    { "buffer_wrap", &machine::DriveTiming::bufferWrap },
+    { "close", &machine::DriveTiming::close },
+} };
+
 } // namespace
 
 void addDiskMethods( Dispatcher& dispatcher, Emulator& emulator )
 {
+  dispatcher.add(
+      "disk.timing",
+      info( "How long the SD2PET takes for each phase of its firmware, in cycles; given fields change it until "
+            "the PET is powered up again. Answers every field: atn_acknowledge, reaction, command_byte, "
+            "listen_byte, talk_byte, dos_command, file_open, sector_read, buffer_wrap, close "
+            "(docs/hardware/sd2pet.md).",
+            { { .name = "fields",
+                .type = "object",
+                .description = "The fields to change, by name, each a number of cycles.",
+                .required = false } } ),
+      [&emulator]( Json const& params ) -> Outcome
+      {
+        auto const machine = machineOf( emulator );
+        if ( !machine )
+        {
+          return std::unexpected( machine.error() );
+        }
+        machine::DriveTiming timing = ( *machine )->driveTiming();
+        if ( params.contains( "fields" ) )
+        {
+          Json const& fields = params.at( "fields" );
+          if ( !fields.is_object() )
+          {
+            return std::unexpected( badRequest( "fields is an object" ) );
+          }
+          for ( auto const& [name, value] : fields.items() )
+          {
+            auto const field =
+                std::ranges::find_if( TIMING_FIELDS, [&name]( auto const& entry ) { return entry.first == name; } );
+            if ( field == TIMING_FIELDS.end() || !value.is_number_unsigned() )
+            {
+              return std::unexpected( badRequest( fmt::format( "{} is not a timing field of cycles", name ) ) );
+            }
+            timing.*field->second = value.get<std::uint64_t>();
+          }
+          ( *machine )->setDriveTiming( timing );
+        }
+        Json result = Json::object();
+        for ( auto const& [name, member] : TIMING_FIELDS )
+        {
+          result[std::string{ name }] = timing.*member;
+        }
+        return result;
+      } );
+
   dispatcher.add( "disk.status",
                   info( "The SD2PET on the IEEE-488 port, device 8: the directory standing for its SD card, the "
                         "directory current on it and the image entered there, as host paths, its device number, "

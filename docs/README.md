@@ -63,6 +63,7 @@ it, never "at the end of the session".
 - [0015: A letter typed on the host keeps the PET's SHIFT, and the host's layout names the character](decisions/0015-letters-keep-the-pets-shift.md)
 - [0016: The screen is green, its dots square, unless chosen otherwise](decisions/0016-the-screen-is-green-and-square.md)
 - [0017: A save state leaves the SD2PET out](decisions/0017-save-states-leave-the-drive-out.md)
+- [0018: The SD2PET's timing is set from the bench](decisions/0018-the-sd2pets-timing-is-set-from-the-bench.md)
 
 ### Hardware
 - [The 6502](hardware/cpu.md): where the emulated 6502 departs from m6502.h or m6502.h from the NMOS 6502, and the evidence

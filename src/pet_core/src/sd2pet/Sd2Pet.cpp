@@ -615,17 +615,16 @@ void Sd2Pet::step( Clock now )
         mState = State::TALK_OUTER;
         break;
       }
+      Clock const cost = refillCost();
       if ( mBuffer->refill( *mDos, mBuffer ) != 0 )
       {
-        mDav = true;
-        mEoi = true; // T9
-        apply( now );
-        busy( State::COMMAND_READY, now, mTiming.refill );
+        // T9: DAV and EOI let go once the refill has failed.
+        busy( State::TALK_ABORT_RELEASE, now, cost );
         return;
       }
       // Search the buffer again, it can change when using large buffers
       mBuffer = findBuffer( *mDos, mSa );
-      busy( State::TALK_OUTER, now, mTiming.refill );
+      busy( State::TALK_OUTER, now, cost );
       return;
     }
 
@@ -659,6 +658,13 @@ void Sd2Pet::step( Clock now )
 
 // --------------------------------------------------------------------------
 // ieee.c's functions
+
+/// What refilling the current buffer costs: a # buffer starts over, any
+/// other reads or writes the next sector of its file.
+Clock Sd2Pet::refillCost() const
+{
+  return mBuffer->refill == directbufferRefill ? mTiming.bufferWrap : mTiming.sectorRead;
+}
 
 void Sd2Pet::rxByte( State back )
 {
@@ -706,7 +712,7 @@ void Sd2Pet::listenByte( Clock now )
   // Flush buffer if full
   if ( mBuffer->mustflush )
   {
-    cost += mTiming.refill;
+    cost += refillCost();
     if ( mBuffer->refill( *mDos, mBuffer ) != 0 )
     {
       rxByte( State::IGNORE_BYTE );
@@ -732,7 +738,7 @@ void Sd2Pet::listenByte( Clock now )
   // REL files must be syncronized on EOI
   if ( mBuffer->recordlen != 0 && mRx == Rx::EOI )
   {
-    cost += mTiming.refill;
+    cost += refillCost();
     if ( mBuffer->refill( *mDos, mBuffer ) != 0 )
     {
       rxByte( State::IGNORE_BYTE );

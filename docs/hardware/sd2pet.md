@@ -17,8 +17,25 @@ stepped with the PET's cycles. Every loop in which the firmware polls a line is 
 device acts on a line a fixed number of cycles after it changes, as the firmware's poll would.
 The DOS runs whole when the firmware calls it, and the device then stays busy for a time given
 per kind of call (a command, an OPEN, a sector, a CLOSE), as the ATmega would be; its ATN
-interrupt still answers meanwhile. Those times are provisional until set from the owner's
-measurements (M7 in [the milestones](../plans/milestones.md)).
+interrupt still answers meanwhile.
+
+## Timing
+
+Each phase's time, in cycles, as [0018](../decisions/0018-the-sd2pets-timing-is-set-from-the-bench.md)
+set them from the owner's `bench`; `disk.timing` reads and changes them.
+
+| Phase | Cycles | Set by |
+|---|---|---|
+| ATN to the interrupt's answer | 2 | the firmware's interrupt |
+| A polled line to the next action | 2 | the bench's inline receiver, 58 a byte |
+| A command byte under ATN | 5 | CHKIN, 435 |
+| A data byte received, until ready for the next | 320 | the `U1` command, 4852 to 4872 |
+| The next byte to send | 3 | the bench's inline receiver |
+| A command on channel 15 | 400 | CHKIN, which a longer command would delay |
+| Opening a file, a directory or a buffer | 2000 | not measured |
+| A file's next sector | 4000 | the sequential file, 74 to 167 a byte |
+| A `#` buffer starting over | 2 | the sector's second half, as fast as its first |
+| Closing a channel | 500 | not measured |
 
 ## The wiring
 

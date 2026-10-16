@@ -16,6 +16,7 @@
 // the UART, and the sleep the buttons put the bus in.
 
 #include "machine/Clock.hpp"
+#include "pet/machine/Machine.hpp"
 
 #include <cstdint>
 #include <filesystem>
@@ -34,30 +35,8 @@ namespace pet::sd2pet
 struct Dos;
 struct Buffer;
 
-/// How long the SD2PET takes, in the PET's cycles. Provisional until set
-/// from the owner's measurements (docs/plans/milestones.md, M7).
-struct Timing
-{
-  /// From ATN pulled low to the interrupt's answer: NRFD low, NDAC let go.
-  machine::Clock atnAcknowledge{ 2 };
-  /// From a line the firmware polls changing to its next action.
-  machine::Clock reaction{ 2 };
-  /// Taking a command byte under ATN, after DAV goes high, until it is ready
-  /// for the next.
-  machine::Clock commandByte{ 5 };
-  /// Taking a data byte, after DAV goes high, until it is ready for the next.
-  machine::Clock listenByte{ 5 };
-  /// Fetching the next byte to send, from NRFD high to DAV low.
-  machine::Clock talkByte{ 3 };
-  /// Running a command received on channel 15.
-  machine::Clock dosCommand{ 2000 };
-  /// Opening a file, a directory or a buffer.
-  machine::Clock fileOpen{ 2000 };
-  /// Refilling or writing out a buffer: the next sector of a file.
-  machine::Clock refill{ 4000 };
-  /// Closing a channel.
-  machine::Clock close{ 500 };
-};
+/// How long the SD2PET takes (Machine.hpp).
+using Timing = machine::DriveTiming;
 
 class Sd2Pet
 {
@@ -204,6 +183,7 @@ private:
   void untalk();
   void close( std::uint8_t sa, machine::Clock now );
   void rxByte( State back );
+  [[nodiscard]] machine::Clock refillCost() const;
 
   machine::Ieee488Bus& mBus;
   std::unique_ptr<Dos> mDos;
