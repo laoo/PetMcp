@@ -4,7 +4,9 @@ add_library( pet_core
   src/Version.cpp
   src/control/Dispatcher.cpp
   src/control/EmuMethods.cpp
-  src/control/Params.cpp )
+  src/control/Params.cpp
+  src/cpu/Cpu6502.cpp
+  src/cpu/Disassembler.cpp )
 
 add_library( pet::core ALIAS pet_core )
 
@@ -19,4 +21,4 @@ target_compile_definitions( pet_core PRIVATE PET_VERSION="${PET_VERSION_STRING}"
 # The rest is PRIVATE: no header of the core includes it.
 target_link_libraries( pet_core
   PUBLIC  nlohmann_json::nlohmann_json spdlog::spdlog
-  PRIVATE pet::warnings miniz )
+  PRIVATE pet::warnings miniz chips_m6502 )

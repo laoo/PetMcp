@@ -24,6 +24,8 @@ build/debug/src/pet_cli/petmcp-cli --server --rom-dir ../vice/data/PET          
 build/debug/src/pet_cli/petmcp-cli --mcp --rom-dir ../vice/data/PET --card-dir ~/PetCard     # MCP for an agent
 ctest --preset debug -L control                     # the protocol's recorded transcripts, tests/control/*.jsonl
 (cd tests && ../build/debug/src/pet_cli/petmcp-cli --transcript control/lines.jsonl > control/lines.expect)   # re-record one, after a deliberate change of answers
+./scripts/fetch-6502-tests.sh                       # the SingleStepTests 65x02 suite's NMOS 6502, 1.1 GB to fetch
+build/release/tests/pet_tests "[cpu-suite]"         # the 6502 against it, about 15 s
 ./scripts/compile-shaders.sh                        # the screen's shaders, after changing their GLSL (brew install glslang spirv-cross)
 ```
 
@@ -49,7 +51,7 @@ session takes one milestone by name.
 | `src/pet_cli/` | `petmcp-cli`: headless runs, `--server`, `--mcp`, `--transcript`. Argument parsing and I/O only. |
 | `src/pet_app/` | `petmcp`: the SDL3 + Dear ImGui desktop frontend. |
 | `tests/` | Catch2 v3 tests, linked against `pet_core`; `control/` also holds the protocol's recorded transcripts. |
-| `libextern/` | Third-party code carried in the tree, unmodified (from M1). Not formatted, not tidied. |
+| `libextern/` | Third-party code carried in the tree, unmodified. Not formatted, not tidied. `libextern/README.md` is the inventory. |
 | `cmake/` | `Warnings.cmake`, `Dependencies.cmake`, `Version.cmake`, `Install.cmake`. |
 | `docs/` | See `docs/README.md`; it is the index and the rulebook. |
 
@@ -77,6 +79,8 @@ read-only references, never edited from here
   tree to port from it.
 - `../PGMWorkspace/PGMEmu` — the owner's PGM emulator, whose architecture,
   protocol, frontend and style this one takes.
+
+Tests tagged `[cpu-suite]` read `build/tools/6502/` and skip without it.
 
 ## Code style
 

@@ -1,6 +1,8 @@
 add_executable( pet_tests
   VersionTest.cpp
   control/DispatcherTest.cpp
+  cpu/Cpu6502SingleStepTest.cpp
+  cpu/Cpu6502Test.cpp
   server/JsonLinesServerTest.cpp
   server/McpServerTest.cpp
   server/NetworkServersTest.cpp
@@ -14,6 +16,10 @@ target_include_directories( pet_tests PRIVATE . "${PROJECT_SOURCE_DIR}/src/pet_c
 # code arrives with pet_core, which links it. Linking it here as well puts the
 # archive on the link line twice, which Apple's linker warns about.
 target_include_directories( pet_tests SYSTEM PRIVATE $<TARGET_PROPERTY:miniz,INTERFACE_INCLUDE_DIRECTORIES> )
+
+# Where the [cpu-suite] tests find the SingleStepTests suite
+# scripts/fetch-6502-tests.sh downloads; they skip without it.
+target_compile_definitions( pet_tests PRIVATE PET_TEST_6502_DIR="${CMAKE_SOURCE_DIR}/build/tools/6502" )
 
 target_link_libraries( pet_tests
   PRIVATE pet::server Catch2::Catch2WithMain pet::warnings httplib )

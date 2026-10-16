@@ -25,6 +25,13 @@ owner's.
 
 ## Libraries
 
+Carried in `libextern/`, unmodified, with their licences beside them
+([libextern/README.md](libextern/README.md)):
+
+| Library | Copyright | Licence |
+|---|---|---|
+| [chips](https://github.com/floooh/chips)' `m6502.h` and `m6502dasm.h`, the 6502 | Andre Weissflog | zlib |
+
 Fetched when the build is configured ([cmake/Dependencies.cmake](cmake/Dependencies.cmake)), and
 linked into the programs:
 
@@ -39,7 +46,8 @@ linked into the programs:
 | [CLI11](https://github.com/CLIUtils/CLI11) | University of Cincinnati | BSD-3-Clause |
 
 Used by the test suite alone, and not distributed: [Catch2](https://github.com/catchorg/Catch2)
-(Boost Software License 1.0).
+(Boost Software License 1.0), and the [SingleStepTests](https://github.com/SingleStepTests) 65x02
+suite, fetched by `scripts/fetch-6502-tests.sh`.
 
 ## What is not here
 

@@ -37,6 +37,7 @@ install( FILES LICENSE README.md THIRD_PARTY.md DESTINATION . COMPONENT ${PET_CO
 
 # Each library's own licence, named after it.
 set( licences
+     "chips.txt=${CMAKE_SOURCE_DIR}/libextern/chips/LICENSE"
      "CLI11.txt=${cli11_SOURCE_DIR}/LICENSE"
      "spdlog.txt=${spdlog_SOURCE_DIR}/LICENSE"
      "nlohmann_json.txt=${nlohmann_json_SOURCE_DIR}/LICENSE.MIT"

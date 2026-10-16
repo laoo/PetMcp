@@ -62,6 +62,7 @@ it, never "at the end of the session".
 - [0014: The host keyboard is mapped by symbol](decisions/0014-keyboard-by-symbol.md)
 
 ### Hardware
+- [The 6502](hardware/cpu.md): where the emulated 6502 departs from m6502.h or m6502.h from the NMOS 6502, and the evidence
 - [The expansion board](hardware/expansion-board.md): two YM2149Fs, character RAM and 1 MB of banked RAM in the PET's sockets
 
 ### Plans

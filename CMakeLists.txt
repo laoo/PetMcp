@@ -23,6 +23,8 @@ option( PET_WERROR      "Treat compiler warnings as errors"        OFF )
 include( Warnings )
 include( Dependencies )
 
+add_subdirectory( libextern )
+
 add_subdirectory( src/pet_core )
 add_subdirectory( src/pet_server )
 add_subdirectory( src/pet_cli )

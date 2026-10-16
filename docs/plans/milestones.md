@@ -17,18 +17,6 @@ A session takes work by saying *build M<n> of docs/plans/milestones.md*. Every t
 Every milestone ends with an **exit** condition that can be checked without a person looking at
 a screen.
 
-## M1: The 6502
-
-- Vendor `m6502.h` and `m6502dasm.h` from floooh/chips under `libextern/chips`, with their
-  licence and an entry in `libextern/README.md` ([0003](../decisions/0003-cpu-core.md)).
-- An adapter around it: registers, a tick, the pins, and disassembly.
-- `scripts/fetch-6502-tests.sh` fetches the SingleStepTests 65x02 NMOS 6502 suite into
-  `build/tools/6502`; a `[cpu-suite]` test runs every opcode's cases, bus cycle by bus cycle,
-  undocumented ones included, and skips without the data.
-
-**Exit:** every case of the suite passes, or each one that does not is listed in
-`docs/hardware/` with the reason it does not matter or the record that decides it.
-
 ## M2: The PET
 
 - The machine: RAM, video RAM and its mirror, the ROMs read from the ROM directory, the I/O page
