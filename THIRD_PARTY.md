@@ -18,6 +18,16 @@ https://github.com/nils-eilers/NODISKEMU, by Nils Eilers, a fork of **sd2iec** b
 released under the GNU General Public License, version 2. Code ported from it names the source
 file and the commit it was read at in its header.
 
+The SD card's layer over a host directory (`src/pet_core/src/sd2pet/HostFs.cpp`) ports parts of
+**FatFs** R0.06 as NODISKEMU carries it, by ChaN, with long names by Jim Brain. Its terms:
+
+> Copyright (C) 2008, ChaN, all right reserved.
+>
+> * The FatFs module is a free software and there is no warranty.
+> * You can use, modify and/or redistribute it for personal, non-profit or commercial use without
+>   restriction under your responsibility.
+> * Redistributions of source code must retain the above copyright notice.
+
 ## The expansion board and TangPet
 
 The expansion board's design and TangPet, the FPGA PET the emulator is compared with, are the

@@ -2,6 +2,7 @@
 
 #include "Clock.hpp"
 #include "ExpansionBoard.hpp"
+#include "Ieee488Bus.hpp"
 #include "Pia6520.hpp"
 #include "Sound.hpp"
 #include "StateArchive.hpp"
@@ -9,6 +10,7 @@
 #include "Via6522.hpp"
 #include "Video.hpp"
 #include "cpu/Cpu6502.hpp"
+#include "sd2pet/Sd2Pet.hpp"
 
 #include <miniz.h>
 
@@ -63,7 +65,7 @@ std::vector<std::uint8_t> powerUpVideoRam()
 
 /// What a state begins with, and the version of its layout as a whole.
 constexpr std::array<char, 8> STATE_MAGIC{ 'P', 'E', 'T', 'S', 'T', 'A', 'T', 'E' };
-constexpr std::uint32_t STATE_VERSION = 1;
+constexpr std::uint32_t STATE_VERSION = 2;
 
 /// The cycle of the first opcode fetch after power-up, as VICE counts it: its
 /// trace of a power-up shows the first instruction at clock 6.
@@ -84,7 +86,7 @@ struct Machine::Board final : cpu::Bus
     {
       // Bits 4 and 5 sense the tapes, none here; 6 is EOI in, 7 the
       // diagnostic pin; each reads 0 when active.
-      return 0xff;
+      return board.bus.low( IEEE_EOI ) ? 0xbf : 0xff;
     }
 
     std::uint8_t readPb() override
@@ -103,17 +105,26 @@ struct Machine::Board final : cpu::Bus
 
     void storePb( std::uint8_t /*byte*/ ) override {}
 
-    void setCa2( bool /*state*/ ) override {}
+    /// EOI out, low when CA2 is.
+    void setCa2( bool state ) override
+    {
+      board.bus.setPetLine( IEEE_EOI, !state, board.clock );
+    }
 
     void setCb2( bool /*state*/ ) override {}
   };
 
-  /// PIA2, $E820: IEEE-488's data and NDAC and DAV out (petpia2.c).
+  /// PIA2, $E820: IEEE-488's data in on port A and out on port B, NDAC out
+  /// on CA2 and DAV out on CB2 (petpia2.c); ATN in on CA1.
   struct Pia2Ports final : PiaPorts
   {
+    Board& board;
+
+    explicit Pia2Ports( Board& owner ) : board{ owner } {}
+
     std::uint8_t readPa() override
     {
-      return 0xff;
+      return board.bus.data();
     }
 
     std::uint8_t readPb() override
@@ -123,11 +134,20 @@ struct Machine::Board final : cpu::Bus
 
     void storePa( std::uint8_t /*byte*/ ) override {}
 
-    void storePb( std::uint8_t /*byte*/ ) override {}
+    void storePb( std::uint8_t byte ) override
+    {
+      board.bus.setPetData( byte, board.clock );
+    }
 
-    void setCa2( bool /*state*/ ) override {}
+    void setCa2( bool state ) override
+    {
+      board.bus.setPetLine( IEEE_NDAC, !state, board.clock );
+    }
 
-    void setCb2( bool /*state*/ ) override {}
+    void setCb2( bool state ) override
+    {
+      board.bus.setPetLine( IEEE_DAV, !state, board.clock );
+    }
   };
 
   /// The VIA, $E840: IEEE-488's handshake, the retrace on PB5, the character
@@ -149,6 +169,18 @@ struct Machine::Board final : cpu::Bus
       // NRFD in (6), NDAC in (0) and DAV in (7) read 0 when active; PB5 is low
       // in the vertical blank.
       std::uint8_t byte = 0xff;
+      if ( board.bus.low( IEEE_NRFD ) )
+      {
+        byte = static_cast<std::uint8_t>( byte - 64 );
+      }
+      if ( board.bus.low( IEEE_NDAC ) )
+      {
+        byte = static_cast<std::uint8_t>( byte - 1 );
+      }
+      if ( board.bus.low( IEEE_DAV ) )
+      {
+        byte = static_cast<std::uint8_t>( byte - 128 );
+      }
       if ( board.video.offScreen() )
       {
         byte = static_cast<std::uint8_t>( byte - 32 );
@@ -158,7 +190,18 @@ struct Machine::Board final : cpu::Bus
 
     void storePra( std::uint8_t /*byte*/ ) override {}
 
-    void storePrb( std::uint8_t /*byte*/ ) override {}
+    /// NRFD out on PB1 and ATN out on PB2, each low when its bit is. ATN
+    /// also reaches PIA2's CA1, as on the PET's board; VICE leaves it out.
+    void storePrb( std::uint8_t byte ) override
+    {
+      board.bus.setPetLine( IEEE_NRFD, ( byte & 0x02U ) == 0, board.clock );
+      bool const atnLow = ( byte & 0x04U ) == 0;
+      if ( atnLow != board.bus.low( IEEE_ATN ) )
+      {
+        board.bus.setPetLine( IEEE_ATN, atnLow, board.clock );
+        board.pia2.signal( Pia6520::Line::CA1, !atnLow, board.clock );
+      }
+    }
 
     void setCa2( bool state ) override
     {
@@ -198,8 +241,9 @@ struct Machine::Board final : cpu::Bus
 
   Board( Roms romSet, bool withBoard )
       : roms{ std::move( romSet ) }, ram{ powerUpRam() }, videoRam{ powerUpVideoRam() },
-        expansion{ withBoard ? std::make_unique<ExpansionBoard>() : nullptr }, pia1Ports{ *this }, viaPorts{ *this },
-        pia1{ pia1Ports }, pia2{ pia2Ports }, via{ viaPorts }, video{ roms.characters, videoRam }
+        expansion{ withBoard ? std::make_unique<ExpansionBoard>() : nullptr }, drive{ bus }, pia1Ports{ *this },
+        pia2Ports{ *this }, viaPorts{ *this }, pia1{ pia1Ports }, pia2{ pia2Ports }, via{ viaPorts },
+        video{ roms.characters, videoRam }
   {
     // The chips' reset at power-up, at the clock the trace begins at.
     pia1.reset( 0 );
@@ -368,6 +412,7 @@ struct Machine::Board final : cpu::Bus
     {
       ++frame;
     }
+    drive.cycle( clock );
     via.cycle( clock );
     if ( expansion )
     {
@@ -511,6 +556,7 @@ struct Machine::Board final : cpu::Bus
     archive.chunk( fourCc( "VIA " ), 1, via );
     archive.chunk( fourCc( "VID " ), 1, video );
     archive.chunk( fourCc( "SND " ), 1, sound );
+    archive.chunk( fourCc( "IEEE" ), 1, bus );
     if ( expansion )
     {
       archive.chunk( fourCc( "XBRD" ), 1, *expansion );
@@ -539,6 +585,9 @@ struct Machine::Board final : cpu::Bus
   /// The keys the protocol and the host hold.
   KeyMatrix keys{};
   KeyMatrix hostKeys{};
+  /// The IEEE-488 port, and the SD2PET on it.
+  Ieee488Bus bus;
+  sd2pet::Sd2Pet drive;
   Pia1Ports pia1Ports;
   Pia2Ports pia2Ports;
   ViaPortsOfPet viaPorts;
@@ -592,12 +641,56 @@ Machine::Machine( Roms roms, bool expansionBoard )
 
 Machine::~Machine() = default;
 
+void Machine::setCard( std::filesystem::path const& card )
+{
+  mBoard->drive.setCard( card );
+}
+
+DriveState Machine::drive() const
+{
+  sd2pet::Sd2Pet const& drive = mBoard->drive;
+  return DriveState{ .card = drive.card(),
+                     .directory = drive.directory(),
+                     .image = drive.image(),
+                     .device = drive.deviceAddress(),
+                     .status = drive.status() };
+}
+
+std::string Machine::mountDisk( std::filesystem::path const& image )
+{
+  return mBoard->drive.mount( image );
+}
+
+std::string Machine::diskCommand( std::string_view command )
+{
+  return mBoard->drive.command( command );
+}
+
+std::size_t Machine::ieeeTraceLength() const
+{
+  return mBoard->bus.traceLength();
+}
+
+IeeeEvent Machine::ieeeTraced( std::size_t index ) const
+{
+  return mBoard->bus.traced( index );
+}
+
 void Machine::reset()
 {
   mBoard->cpu.reset();
   mBoard->pia1.reset( mBoard->clock );
   mBoard->pia2.reset( mBoard->clock );
   mBoard->via.reset( mBoard->clock );
+  // The chips let go of the IEEE-488 lines they drive (petpia2.c and
+  // petvia.c's resets), and the reset reaches the drive as IFC.
+  Board& board = *mBoard;
+  board.bus.setPetData( 0xff, board.clock );
+  board.bus.setPetLine( IEEE_ATN, false, board.clock );
+  board.bus.setPetLine( IEEE_NRFD, false, board.clock );
+  board.bus.setPetLine( IEEE_IFC, true, board.clock );
+  board.drive.interfaceClear( board.clock );
+  board.bus.setPetLine( IEEE_IFC, false, board.clock );
 }
 
 RunResult Machine::runCycles( std::uint64_t count )
@@ -841,6 +934,8 @@ std::expected<void, std::string> Machine::loadState( std::span<std::uint8_t cons
   mBoard->serialize( reader );
   if ( reader.good() && reader.atEnd() )
   {
+    // The drive is not part of a state: it waits for the PET afresh.
+    mBoard->drive.idle( mBoard->clock );
     return {};
   }
   StateReader restore{ before };

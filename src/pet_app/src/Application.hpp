@@ -74,9 +74,12 @@ private:
 
   void openProgram();
   void chooseRomDirectory();
+  void chooseCardDirectory();
   /// Reads the ROMs from `directory`, and keeps it for the next start when
   /// `keep`.
   void setRomDirectory( std::filesystem::path const& directory, bool keep );
+  /// Puts `directory` in the SD2PET as its card; with `keep`, remembers it.
+  void setCardDirectory( std::filesystem::path const& directory, bool keep );
   void keepSetting( std::string const& key, control::Json value );
 
   /// Lays out one frame of the user interface.
@@ -110,11 +113,13 @@ private:
   std::unique_ptr<CpuWindow> mCpu;
   std::unique_ptr<MemoryWindow> mMemory;
   std::unique_ptr<IoWindow> mIo;
+  std::unique_ptr<DriveWindow> mDrive;
   std::unique_ptr<HistoryWindow> mHistory;
   bool mShowHistory{};
   bool mShowCpu{};
   bool mShowMemory{};
   bool mShowIo{};
+  bool mShowDrive{};
   bool mShowSound{};
   /// Where the display settings, the keyboard map and the application's own
   /// settings are kept, beside imgui.ini; empty when they are not kept.
@@ -140,6 +145,7 @@ private:
   std::mutex mChosenMutex;
   std::optional<std::filesystem::path> mChosenProgram;
   std::optional<std::filesystem::path> mChosenRomDirectory;
+  std::optional<std::filesystem::path> mChosenCardDirectory;
   /// A program to run once the PET is ready.
   std::optional<std::filesystem::path> mProgramWaiting;
 };

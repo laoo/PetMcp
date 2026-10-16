@@ -62,11 +62,13 @@ it, never "at the end of the session".
 - [0014: The host keyboard is mapped by symbol](decisions/0014-keyboard-by-symbol.md)
 - [0015: A letter typed on the host keeps the PET's SHIFT, and the host's layout names the character](decisions/0015-letters-keep-the-pets-shift.md)
 - [0016: The screen is green, its dots square, unless chosen otherwise](decisions/0016-the-screen-is-green-and-square.md)
+- [0017: A save state leaves the SD2PET out](decisions/0017-save-states-leave-the-drive-out.md)
 
 ### Hardware
 - [The 6502](hardware/cpu.md): where the emulated 6502 departs from m6502.h or m6502.h from the NMOS 6502, and the evidence
 - [The machine](hardware/machine.md): where the emulated PET follows VICE, TangPet or neither, and the evidence
 - [The expansion board](hardware/expansion-board.md): two YM2149Fs, character RAM and 1 MB of banked RAM in the PET's sockets
+- [The SD2PET](hardware/sd2pet.md): how the drive and its card are modelled, and where they depart from the hardware and NODISKEMU
 
 ### Plans
 - [Milestones](plans/milestones.md): what is still to be built, in order

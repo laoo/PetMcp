@@ -86,4 +86,18 @@ private:
   Requester mRequest;
 };
 
+/// The SD2PET: its card, directory, image and status, a command to send it,
+/// and the IEEE-488 port's last changes.
+class DriveWindow
+{
+public:
+  explicit DriveWindow( Requester request );
+  void draw( bool& open );
+
+private:
+  Requester mRequest;
+  std::array<char, 128> mCommand{};
+  std::string mAnswer;
+};
+
 } // namespace pet::app

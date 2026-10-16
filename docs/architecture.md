@@ -83,9 +83,12 @@ cycle. That is VICE's order, whose alarms for a clock run after the CPU's access
   AY1 on the left and AY2 on the right. The chips are clocked every cycle, by 2 or 1 of their own
   clocks. The frontend hands the frames to SDL, which resamples them to the device's rate.
 - **IEEE-488 and the SD2PET.** The bus is its eight lines of data and its handshake lines, each
-  the AND of what both ends drive. The SD2PET is a device on it at address 8, with the timing the
-  owner measured on the real one and the DOS of the firmware it runs
-  ([0010](decisions/0010-sd2pet.md)). A directory on the host stands for its SD card.
+  the AND of what both ends drive, wired to the PIAs and the VIA as VICE wires them. The SD2PET
+  is a device on it at address 8: NODISKEMU's bus loop as a state machine stepped with the PET's
+  cycles, around NODISKEMU's DOS, ported ([0010](decisions/0010-sd2pet.md),
+  [hardware/sd2pet.md](hardware/sd2pet.md)). A directory on the host stands for its SD card,
+  through a layer with FatFs's calls. Every change of the bus is noted, cycle-stamped, for
+  `ieee.trace`.
 
 There is no tape and no user port.
 
@@ -150,8 +153,8 @@ IEEE-488 bus gets its window with M6. Every window asks through the protocol.
 Each device writes a tagged chunk (`FOURCC`, version, size). A state is a header, which names the
 layout's version and the ROMs' CRC-32, and the chunks. Tagged chunks let a device's layout change
 without invalidating other devices' data. The pictures are kept a bit a dot, so a state is some
-50 KB. The SD2PET's state will hold its channels and buffers, and name the images it has mounted;
-the card directory's files are not part of a state.
+50 KB. A state holds the IEEE-488 bus's lines but not the SD2PET: loading one leaves the drive as
+it was, waiting for the PET ([0017](decisions/0017-save-states-leave-the-drive-out.md)).
 
 A frame of the desktop application's own run stopped at a breakpoint or a watchpoint pauses the
 window where the debugger asked. There is no rewind: a PET is debugged, not replayed, and the

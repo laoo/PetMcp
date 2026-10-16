@@ -11,6 +11,7 @@
 
 #include <algorithm>
 #include <array>
+#include <cctype>
 #include <cmath>
 #include <fstream>
 #include <utility>
@@ -35,6 +36,16 @@ constexpr char const* INPUT_WINDOW = "Input";
 /// The frames after power-up by which the PET is at READY, with a margin: it
 /// gets there in 88.
 constexpr std::int64_t READY_FRAME = 100;
+
+/// Whether `path` names a disk image the SD2PET mounts, by its extension.
+bool isDiskImage( std::filesystem::path const& path )
+{
+  std::string extension = path.extension().string();
+  std::ranges::transform(
+      extension, extension.begin(), []( unsigned char c ) { return static_cast<char>( std::tolower( c ) ); } );
+  return extension == ".d64" || extension == ".d71" || extension == ".d81" || extension == ".d80" ||
+         extension == ".d82" || extension == ".dnp";
+}
 
 std::string sdlError( std::string const& what )
 {
@@ -90,11 +101,17 @@ std::expected<std::unique_ptr<Application>, std::string> Application::create( Se
 
   // From here on the destructor owns the window and the device.
   bool const romsGiven = !settings.romDirectory.empty();
+  bool const cardGiven = !settings.cardDirectory.empty();
   std::unique_ptr<Application> application{ new Application{ window, device, std::move( settings ) } };
   if ( !romsGiven && application->mSettings.contains( "rom_directory" ) &&
        application->mSettings.at( "rom_directory" ).is_string() )
   {
     application->setRomDirectory( application->mSettings.at( "rom_directory" ).get<std::string>(), false );
+  }
+  if ( !cardGiven && application->mSettings.contains( "card_directory" ) &&
+       application->mSettings.at( "card_directory" ).is_string() )
+  {
+    application->setCardDirectory( application->mSettings.at( "card_directory" ).get<std::string>(), false );
   }
   if ( !application->mScreen->valid() )
   {
@@ -158,6 +175,7 @@ Application::Application( SDL_Window* window, SDL_GPUDevice* device, Settings se
   mCpu = std::make_unique<CpuWindow>( requester );
   mMemory = std::make_unique<MemoryWindow>( requester );
   mIo = std::make_unique<IoWindow>( requester );
+  mDrive = std::make_unique<DriveWindow>( requester );
   mHistory = std::make_unique<HistoryWindow>( requester,
                                               [this]( double seconds ) { keepSetting( "history_seconds", seconds ); } );
   if ( mSettings.contains( "history_seconds" ) && mSettings.at( "history_seconds" ).is_number() )
@@ -187,6 +205,7 @@ Application::~Application()
   mCpu.reset();
   mMemory.reset();
   mIo.reset();
+  mDrive.reset();
   mHistory.reset();
   mScreen.reset();
   mRenderer.reset();
@@ -305,7 +324,8 @@ void Application::runProgram( std::filesystem::path const& path )
     return;
   }
   mProgramWaiting.reset();
-  auto const response = request( "program.load", { { "path", path.string() }, { "run", true } } );
+  auto const response = isDiskImage( path ) ? request( "disk.run", { { "path", path.string() } } )
+                                            : request( "program.load", { { "path", path.string() }, { "run", true } } );
   mLastError = response.at( "ok" ) == true ? std::string{} : response.at( "error" ).at( "message" ).get<std::string>();
 }
 
@@ -313,14 +333,20 @@ void Application::takeChosen()
 {
   std::optional<std::filesystem::path> program;
   std::optional<std::filesystem::path> directory;
+  std::optional<std::filesystem::path> card;
   {
     std::scoped_lock const lock{ mChosenMutex };
     program.swap( mChosenProgram );
     directory.swap( mChosenRomDirectory );
+    card.swap( mChosenCardDirectory );
   }
   if ( directory )
   {
     setRomDirectory( *directory, true );
+  }
+  if ( card )
+  {
+    setCardDirectory( *card, true );
   }
   if ( program )
   {
@@ -334,7 +360,11 @@ void Application::takeChosen()
 
 void Application::openProgram()
 {
-  static constexpr std::array<SDL_DialogFileFilter, 1> FILTERS{ { { .name = "PET programs", .pattern = "prg" } } };
+  static constexpr std::array<SDL_DialogFileFilter, 3> FILTERS{
+    { { .name = "PET programs and disks", .pattern = "prg;d64;d71;d81;d80;d82;dnp" },
+      { .name = "PET programs", .pattern = "prg" },
+      { .name = "Disk images", .pattern = "d64;d71;d81;d80;d82;dnp" } }
+  };
   SDL_ShowOpenFileDialog(
       []( void* self, char const* const* files, int /*filter*/ )
       {
@@ -370,6 +400,39 @@ void Application::chooseRomDirectory()
       mWindow,
       nullptr,
       false );
+}
+
+void Application::chooseCardDirectory()
+{
+  SDL_ShowOpenFolderDialog(
+      []( void* self, char const* const* folders, int /*filter*/ )
+      {
+        if ( folders != nullptr && folders[0] != nullptr )
+        {
+          auto* const application = static_cast<Application*>( self );
+          std::scoped_lock const lock{ application->mChosenMutex };
+          application->mChosenCardDirectory = folders[0];
+        }
+      },
+      this,
+      mWindow,
+      nullptr,
+      false );
+}
+
+void Application::setCardDirectory( std::filesystem::path const& directory, bool keep )
+{
+  auto const response = request( "disk.card", { { "path", directory.string() } } );
+  if ( response.at( "ok" ) != true )
+  {
+    mLastError = response.at( "error" ).at( "message" ).get<std::string>();
+    return;
+  }
+  mLastError.clear();
+  if ( keep )
+  {
+    keepSetting( "card_directory", directory.string() );
+  }
 }
 
 void Application::setRomDirectory( std::filesystem::path const& directory, bool keep )
@@ -415,6 +478,7 @@ void Application::drawInterface()
   mCpu->draw( mShowCpu );
   mMemory->draw( mShowMemory );
   mIo->draw( mShowIo );
+  mDrive->draw( mShowDrive );
   mHistory->draw( mShowHistory );
   drawSoundWindow();
 
@@ -432,13 +496,18 @@ void Application::drawMenuBar()
   }
   if ( ImGui::BeginMenu( "File" ) )
   {
-    if ( ImGui::MenuItem( "Open program...", SDL_GetPlatform() == std::string_view{ "macOS" } ? "Cmd+O" : "Ctrl+O" ) )
+    if ( ImGui::MenuItem( "Open program or disk...",
+                          SDL_GetPlatform() == std::string_view{ "macOS" } ? "Cmd+O" : "Ctrl+O" ) )
     {
       openProgram();
     }
     if ( ImGui::MenuItem( "Choose ROM directory..." ) )
     {
       chooseRomDirectory();
+    }
+    if ( ImGui::MenuItem( "Choose SD card directory..." ) )
+    {
+      chooseCardDirectory();
     }
     ImGui::Separator();
     if ( ImGui::MenuItem( "Quit" ) )
@@ -480,6 +549,7 @@ void Application::drawMenuBar()
     ImGui::MenuItem( "History", nullptr, &mShowHistory );
     ImGui::MenuItem( "Memory", nullptr, &mShowMemory );
     ImGui::MenuItem( "I/O", nullptr, &mShowIo );
+    ImGui::MenuItem( "Drive", nullptr, &mShowDrive );
     ImGui::MenuItem( "Sound", nullptr, &mShowSound );
     ImGui::Separator();
     ImGui::MenuItem( "ImGui demo", nullptr, &mShowImguiDemo );

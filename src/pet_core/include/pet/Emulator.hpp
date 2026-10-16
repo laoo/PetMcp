@@ -46,6 +46,10 @@ public:
   /// them. On failure the directory and the machine stay as they were.
   std::expected<void, std::string> setRomDirectory( std::filesystem::path const& directory );
 
+  /// Puts the directory `directory` in the SD2PET as its card, this
+  /// machine's and every one powered up after it; empty takes it out.
+  void setCardDirectory( std::filesystem::path const& directory );
+
   /// The PET, or null when it could not be powered up.
   [[nodiscard]] machine::Machine* machine();
   [[nodiscard]] machine::Machine const* machine() const;

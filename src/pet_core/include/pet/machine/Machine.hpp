@@ -6,11 +6,13 @@
 #include <array>
 #include <cstdint>
 #include <expected>
+#include <filesystem>
 #include <functional>
 #include <memory>
 #include <optional>
 #include <span>
 #include <string>
+#include <string_view>
 #include <vector>
 
 namespace pet::machine
@@ -134,6 +136,43 @@ struct TracedInstruction
   std::uint64_t cycle{};
   CpuState registers{};
   std::array<std::uint8_t, 3> bytes{};
+};
+
+// The IEEE-488 port's control lines, as bits of IeeeEvent's masks.
+inline constexpr std::uint8_t IEEE_ATN = 0x01;
+inline constexpr std::uint8_t IEEE_DAV = 0x02;
+inline constexpr std::uint8_t IEEE_NRFD = 0x04;
+inline constexpr std::uint8_t IEEE_NDAC = 0x08;
+inline constexpr std::uint8_t IEEE_EOI = 0x10;
+inline constexpr std::uint8_t IEEE_IFC = 0x20;
+inline constexpr std::uint8_t IEEE_SRQ = 0x40;
+
+/// A change on the IEEE-488 port: both ends' pull on it after the change, in
+/// the cycle it came. A line is low when either end pulls it; a data line
+/// low is a 1.
+struct IeeeEvent
+{
+  std::uint64_t cycle{};
+  /// The data lines' levels each end lets them have.
+  std::uint8_t petData{ 0xff };
+  std::uint8_t driveData{ 0xff };
+  /// The control lines each end pulls low, IEEE_* bits.
+  std::uint8_t petLines{};
+  std::uint8_t driveLines{};
+};
+
+/// The SD2PET as the protocol shows it.
+struct DriveState
+{
+  /// The directory standing for its SD card; empty with no card.
+  std::filesystem::path card;
+  /// The directory current on the card, and the image entered in it, if
+  /// any, as host paths.
+  std::filesystem::path directory;
+  std::filesystem::path image;
+  unsigned device{};
+  /// The error channel's message, as the PET would read it now.
+  std::string status;
 };
 
 /// The PET 3032: the 6502, 32 KB of RAM, the video, the PIAs and the VIA,
@@ -265,6 +304,23 @@ public:
   /// Whether the video shows the text set, VIA CA2 high, rather than the
   /// graphics set.
   [[nodiscard]] bool textSet() const;
+
+  /// The SD2PET on the IEEE-488 port (docs/hardware/sd2pet.md), and its
+  /// card: the directory `card` stands for it; an empty path takes it out.
+  /// The DOS then starts afresh at the card's root, as after a card change.
+  void setCard( std::filesystem::path const& card );
+  [[nodiscard]] DriveState drive() const;
+  /// Enters the image file `image`, wherever it is, as `CD` of it would from
+  /// its directory. Answers the error channel's message it leaves.
+  std::string mountDisk( std::filesystem::path const& image );
+  /// Runs `command`, PETSCII, as if the PET had sent it on channel 15, at
+  /// once and beside the bus. Answers the error channel's message it leaves.
+  std::string diskCommand( std::string_view command );
+
+  /// The IEEE-488 port's changes: ieeeTraceLength() are kept, the last
+  /// 65536; the `index`th, 0 being the newest, must be below it.
+  [[nodiscard]] std::size_t ieeeTraceLength() const;
+  [[nodiscard]] IeeeEvent ieeeTraced( std::size_t index ) const;
 
 private:
   void completed( RunResult& result );

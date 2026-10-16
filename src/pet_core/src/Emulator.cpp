@@ -26,6 +26,10 @@ std::expected<void, std::string> Emulator::powerUp()
   }
   mMachine = std::make_unique<machine::Machine>( std::move( *roms ), mSettings.expansionBoard );
   mMachine->setTraceCycles( mTraceCycles );
+  if ( !mSettings.cardDirectory.empty() )
+  {
+    mMachine->setCard( mSettings.cardDirectory );
+  }
   ++mPowerUps;
   mPowerUpError.clear();
   return {};
@@ -40,6 +44,15 @@ std::expected<void, std::string> Emulator::setRomDirectory( std::filesystem::pat
     mSettings.romDirectory = previous;
   }
   return powered;
+}
+
+void Emulator::setCardDirectory( std::filesystem::path const& directory )
+{
+  mSettings.cardDirectory = directory;
+  if ( mMachine )
+  {
+    mMachine->setCard( directory );
+  }
 }
 
 machine::Machine* Emulator::machine()

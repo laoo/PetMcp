@@ -17,22 +17,6 @@ A session takes work by saying *build M<n> of docs/plans/milestones.md*. Every t
 Every milestone ends with an **exit** condition that can be checked without a person looking at
 a screen.
 
-## M6: IEEE-488 and the SD2PET
-
-- The bus: data and handshake lines as the AND of both ends, wired to PIA2 and the VIA as VICE
-  wires them.
-- The SD2PET as a device on it ([0010](../decisions/0010-sd2pet.md)): listener and talker, ATN,
-  EOI, with provisional timing.
-- NODISKEMU's DOS, ported: the error channel, commands, listings, images (D64, D80, D82, D81,
-  D71, DNP), files on the card directory.
-- Methods: `disk.mount`, `disk.unmount`, `disk.status`, `disk.run` (mount, then `LOAD` of the
-  first or a named file and `RUN`), `disk.command` (a command on channel 15, and the status it
-  leaves); `ieee.trace` (the bus's line changes, cycle-stamped). The same in the desktop: File >
-  Open of an image, and drag-and-drop.
-
-**Exit:** a transcript mounts a D64, lists `$` on the PET's screen, and runs a program from it
-with `disk.run`.
-
 ## M7: The SD2PET's timing
 
 - Each phase's parameter set from `../PETTest/README.md` §8.

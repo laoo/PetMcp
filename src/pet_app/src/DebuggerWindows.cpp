@@ -451,4 +451,81 @@ void IoWindow::draw( bool& open )
   ImGui::End();
 }
 
+DriveWindow::DriveWindow( Requester request ) : mRequest{ std::move( request ) } {}
+
+void DriveWindow::draw( bool& open )
+{
+  if ( !open )
+  {
+    return;
+  }
+  if ( !ImGui::Begin( "Drive", &open ) )
+  {
+    ImGui::End();
+    return;
+  }
+  control::Json const drive = resultOf( mRequest( "disk.status", control::Json::object() ) );
+  if ( drive.is_null() )
+  {
+    ImGui::TextUnformatted( "The PET is not running" );
+    ImGui::End();
+    return;
+  }
+  auto const text = [&drive]( char const* key ) { return drive.at( key ).get_ref<std::string const&>().c_str(); };
+  ImGui::Text( "SD2PET, device %u", drive.at( "device" ).get<unsigned>() );
+  ImGui::TextWrapped( "Card: %s", drive.at( "card" ).get_ref<std::string const&>().empty() ? "none" : text( "card" ) );
+  ImGui::TextWrapped( "Directory: %s", text( "directory" ) );
+  if ( !drive.at( "image" ).get_ref<std::string const&>().empty() )
+  {
+    ImGui::TextWrapped( "Image: %s", text( "image" ) );
+    ImGui::SameLine();
+    if ( ImGui::SmallButton( "Leave" ) )
+    {
+      static_cast<void>( mRequest( "disk.unmount", control::Json::object() ) );
+    }
+  }
+  ImGui::TextWrapped( "Status: %s", text( "status" ) );
+
+  ImGui::SeparatorText( "Command on channel 15" );
+  bool send = ImGui::InputText( "##command", mCommand.data(), mCommand.size(), ImGuiInputTextFlags_EnterReturnsTrue );
+  ImGui::SameLine();
+  send |= ImGui::Button( "Send" );
+  if ( send && mCommand[0] != 0 )
+  {
+    control::Json const answer = mRequest( "disk.command", control::Json{ { "command", mCommand.data() } } );
+    mAnswer = answer.at( "ok" ) == true ? answer.at( "result" ).at( "status" ).get<std::string>() : errorOf( answer );
+  }
+  if ( !mAnswer.empty() )
+  {
+    ImGui::TextWrapped( "%s", mAnswer.c_str() );
+  }
+
+  ImGui::SeparatorText( "IEEE-488, newest first" );
+  control::Json const trace = resultOf( mRequest( "ieee.trace", control::Json{ { "count", 256 } } ) );
+  if ( !trace.is_null() &&
+       ImGui::BeginTable( "bus", 5, ImGuiTableFlags_ScrollY | ImGuiTableFlags_RowBg | ImGuiTableFlags_SizingFixedFit ) )
+  {
+    ImGui::TableSetupScrollFreeze( 0, 1 );
+    ImGui::TableSetupColumn( "Cycle" );
+    ImGui::TableSetupColumn( "Data" );
+    ImGui::TableSetupColumn( "Low" );
+    ImGui::TableSetupColumn( "PET" );
+    ImGui::TableSetupColumn( "Drive" );
+    ImGui::TableHeadersRow();
+    for ( auto const& event : trace.at( "events" ) )
+    {
+      ImGui::TableNextRow();
+      ImGui::TableNextColumn();
+      ImGui::Text( "%llu", static_cast<unsigned long long>( event.at( "cycle" ).get<std::uint64_t>() ) );
+      for ( auto const* key : { "data", "low", "pet", "drive" } )
+      {
+        ImGui::TableNextColumn();
+        ImGui::TextUnformatted( event.at( key ).get_ref<std::string const&>().c_str() );
+      }
+    }
+    ImGui::EndTable();
+  }
+  ImGui::End();
+}
+
 } // namespace pet::app

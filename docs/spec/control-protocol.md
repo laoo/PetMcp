@@ -212,7 +212,7 @@ A request that failed:
 | `no_machine` | The method needs the PET running, and it is not: its ROMs could not be read. The message says why. |
 | `power_up_failed` | `emu.reset` with `power`, or `emu.set_rom_directory`, could not read the ROMs; the PET that ran runs on. |
 | `invalid_input` | An `input.` method was given a key name, or a text, the PET's keyboard has no key for. |
-| `load_failed` | `program.load` could not read the file, or the program is shorter than its address or does not fit in RAM. |
+| `load_failed` | `program.load` could not read the file, or the program is shorter than its address or does not fit in RAM; or `disk.run`'s LOAD failed. |
 | `state_failed` | A state file could not be written or read. |
 | `capture_running` | `audio.capture_start` while a capture is running. |
 | `capture_not_running` | `audio.capture_stop` with no capture running. |
@@ -222,6 +222,10 @@ A request that failed:
 | `invalid_region` | No memory region of that name, or `memory.write` was given one it cannot write: a ROM. |
 | `invalid_range` | The bytes asked for, or given to `memory.write`, run past the end of the region, or past RAM and video RAM in CPU addresses. |
 | `screenshot_failed` | The picture could not be encoded or written. |
+| `not_found` | `disk.card`, `disk.mount` or `disk.run` was given a path that is not a directory, or not a file. |
+| `mount_failed` | The SD2PET would not enter the image; the message is its error channel's. |
+| `load_timeout` | `disk.run`'s LOAD did not end within a minute of the PET's time. |
+| `stopped` | `disk.run`'s runs were stopped by a breakpoint or a watchpoint before the LOAD ended. |
 | `shutting_down` | The desktop application is closing, and the request was not run. |
 
 ## 5. Methods
@@ -618,7 +622,9 @@ Errors: `no_machine`.
 `{"states":["a.petstate"]}`.
 
 A state holds everything a run changes: the 6502, RAM and video RAM, the PIAs, the VIA with its
-timers, the video's beam and pictures, and the keys `input.set` holds. It holds none of the ROMs,
+timers, the video's beam and pictures, the IEEE-488 port's lines, and the keys `input.set` holds.
+It does not hold the SD2PET ([hardware/sd2pet.md](../hardware/sd2pet.md)): after a load the drive
+waits for the PET afresh, its channels, directory and image as they were. It holds none of the ROMs,
 the breakpoints, the watchpoints, the trace or the keys the desktop application's keyboard holds.
 It is read back by the build that wrote it, into a PET with the same ROMs; any other is refused
 with `state_mismatch`, and the PET runs on as it was. Loading a state, then running, gives exactly
@@ -651,3 +657,85 @@ Takes no parameters. Answers the expansion board's state
 | `shown_buffer` | The character buffer the video shows, 0 or 1; the 6502 sees the other at `$9800`. |
 
 Errors: `no_machine`, `no_expansion`.
+
+### `disk.status`
+
+Takes no parameters. Answers the SD2PET, device 8 on the IEEE-488 port
+([hardware/sd2pet.md](../hardware/sd2pet.md)):
+
+| Field | Meaning |
+|---|---|
+| `card` | The host directory standing for its SD card (`--card-dir`, `disk.card`); empty with no card. |
+| `directory` | The directory current on the card, as a host path. |
+| `image` | The disk image entered there, as a host path; empty when none is. |
+| `device` | Its device number; `U0>n` changes it. |
+| `status` | Its error channel's message as the PET would read it now, without reading it: `73,NODISKEMU V1.0.0ALPHA0-20260918-E51A6DF,00,00` after power-up. |
+
+Errors: `no_machine`.
+
+### `disk.card`
+
+| Param | Meaning |
+|---|---|
+| `path` | A host directory; empty to take the card out. |
+
+Puts the directory in the SD2PET as its card, for this PET and every one powered up after it.
+The drive starts afresh at the card's root, as after a card change. Answers as `disk.status`.
+
+Errors: `no_machine`, `not_found`, `bad_request`.
+
+### `disk.mount`, `disk.unmount`
+
+`disk.mount` takes `path`, a disk image (D64, D71, D81, D80, D82, DNP; NODISKEMU knows them by
+their size), anywhere on the host. The SD2PET enters it as `CD` of it would from its directory,
+which becomes the current one: inside the card, or outside it, where the directory's parent is
+the card's root. `disk.unmount` leaves it, as `CD←` does. Each answers as `disk.status`.
+
+Errors: `no_machine`, `not_found`, `mount_failed`, `bad_request`.
+
+### `disk.command`
+
+| Param | Meaning |
+|---|---|
+| `command` | A DOS command: `CD:NAME`, `S:NAME`, `N:NAME,ID`, `U1 2 0 18 0`, ... |
+
+Runs the command as if the PET had sent it on channel 15, at once and beside the bus, and answers
+`{"status"}`, the error channel's message it leaves. Letters of either case are sent as the PET's
+keyboard types them, the unshifted keys; `←` or `_` is the left arrow, `↑` the up arrow, `£` the
+pound.
+
+Errors: `no_machine`, `bad_request`.
+
+### `disk.run`
+
+| Param | Meaning |
+|---|---|
+| `path` | A disk image to enter first, as `disk.mount` does; the drive as it is when left out. |
+| `file` | The file to load; `*`, the first, when left out. |
+
+Runs a program from the SD2PET as a person would. Runs the PET to its READY. after power-up if it
+is not there yet, types `LOAD"file",8` and RETURN through the keyboard buffer, runs the PET until
+the screen shows READY. after LOADING, or an error, and types `RUN` into the keyboard buffer: the
+PET runs the program as it next runs.
+
+```json
+{"id":5,"ok":true,"result":{"reason":"completed","cycles":2213419,"frames":133,"typed":"LOAD\"*\",8 RUN","drive":{"card":"","directory":"/disks","image":"/disks/game.d64","device":8,"status":"00, OK,00,00"}}}
+```
+
+Errors: `no_machine`, `not_found`, `mount_failed`, `load_failed` (the screen's error line),
+`load_timeout`, `stopped`, `bad_request`.
+
+### `ieee.trace`
+
+| Param | Meaning |
+|---|---|
+| `count` | How many changes, 0 to 4096; 64 when left out. |
+| `from` | The newest one's index; 0 when left out. |
+
+The IEEE-488 port's changes, counted back from the newest, index 0. The last 65536 are kept. Each
+is `{"index", "cycle", "data", "low", "pet", "drive"}`: the cycle it came in; the byte on the data
+lines, `"$41"` (a low line is a 1, as the bus counts); the control lines low (`ATN DAV NRFD NDAC
+EOI IFC SRQ`, those low only); and which of them the PET and the SD2PET each pull. The answer is
+`{"length", "events"}`, `length` how many are kept.
+
+Errors: `no_machine`, `bad_request`.

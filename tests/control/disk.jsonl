@@ -1,0 +1,20 @@
+# The SD2PET through the protocol (docs/spec/control-protocol.md, disk.*): a
+# card, a D64 entered on it, its listing on the PET's screen, a program run
+# from it with disk.run, and the bus that carried it. Run from the build's
+# tests directory, where pet_test_disk has written disk/hello.d64, with VICE's
+# ROMs (tests/CMakeLists.txt); disk.expect holds the answers.
+{"id":2,"method":"disk.status","params":{}}
+{"id":3,"method":"disk.card","params":{"path":"disk"}}
+{"id":4,"method":"emu.run_until","params":{"screen_contains":"READY."}}
+{"id":5,"method":"disk.command","params":{"command":"cd:hello.d64"}}
+{"id":6,"method":"input.type","params":{"text":"load\"$\",8\n"}}
+{"id":7,"method":"emu.run_frames","params":{"count":300}}
+{"id":8,"method":"input.type","params":{"text":"list\n"}}
+{"id":9,"method":"emu.run_frames","params":{"count":30}}
+{"id":10,"method":"video.screen_text","params":{}}
+{"id":11,"method":"disk.run","params":{}}
+{"id":12,"method":"emu.run_frames","params":{"count":30}}
+{"id":13,"method":"video.screen_text","params":{}}
+{"id":14,"method":"ieee.trace","params":{"count":8}}
+{"id":15,"method":"disk.run","params":{"file":"missing"}}
+{"id":16,"method":"disk.unmount","params":{}}

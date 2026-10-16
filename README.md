@@ -28,14 +28,19 @@ serves.
 build/release/src/pet_app/petmcp --rom-dir /path/to/vice/data/PET --card-dir /path/to/card
 ```
 
-`--card-dir` is the directory that stands for the SD2PET's SD card. The owner's expansion board,
-two YM2149Fs, character RAM and 1 MB of banked RAM, fills the `$9000`-`$BFFF` sockets unless
-`--no-expansion` leaves them empty. A `.prg` named after the
-options, opened with File > Open program or dropped on the window is loaded and run once the PET is
-at READY. The ROM directory can also be chosen with File > Choose ROM directory, and is then kept.
+`--card-dir` is the directory that stands for the SD2PET's SD card, device 8; it can also be
+chosen with File > Choose SD card directory, and is then kept. The owner's expansion board, two
+YM2149Fs, character RAM and 1 MB of banked RAM, fills the `$9000`-`$BFFF` sockets unless
+`--no-expansion` leaves them empty. A `.prg` named after the options, opened with File > Open
+program or disk or dropped on the window is loaded and run once the PET is at READY. A disk image
+(`.d64`, `.d71`, `.d81`, `.d80`, `.d82`, `.dnp`) opened or dropped the same way is entered in the
+SD2PET, and its first program loaded with `LOAD"*",8` and run. The ROM directory can also be
+chosen with File > Choose ROM directory, and is then kept.
 
 View opens the debugger's windows: CPU (registers, code, breakpoints, stepping), History (every
-instruction of the last seconds, as it ran, searched by PC or disassembly, the seconds set there), Memory and I/O.
+instruction of the last seconds, as it ran, searched by PC or disassembly, the seconds set there),
+Memory, I/O, and Drive (the SD2PET's card, image and status, a command to send it, and the
+IEEE-488 bus's last changes).
 
 The host keyboard types as a PET's would: what a key makes on the host appears on the PET, a
 letter's SHIFT is the PET's SHIFT (so capitals make graphics in the graphics set), and the keys

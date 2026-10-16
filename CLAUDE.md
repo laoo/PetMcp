@@ -24,6 +24,7 @@ build/debug/src/pet_cli/petmcp-cli --server --rom-dir ../vice/data/PET          
 build/debug/src/pet_cli/petmcp-cli --mcp --rom-dir ../vice/data/PET --card-dir ~/PetCard     # MCP for an agent
 ctest --preset debug -L control                     # the protocol's recorded transcripts, tests/control/*.jsonl
 (cd tests && ../build/debug/src/pet_cli/petmcp-cli --transcript control/lines.jsonl > control/lines.expect)   # re-record one, after a deliberate change of answers
+(cd build/debug/tests && ./pet_test_disk disk && ../src/pet_cli/petmcp-cli --rom-dir ../../../../vice/data/PET --transcript ../../../tests/control/disk.jsonl > ../../../tests/control/disk.expect)   # the SD2PET's, which runs beside the disk it builds
 ./scripts/fetch-6502-tests.sh                       # the SingleStepTests 65x02 suite's NMOS 6502, 1.1 GB to fetch
 build/release/tests/pet_tests "[cpu-suite]"         # the 6502 against it, about 15 s
 ./scripts/compile-shaders.sh                        # the screen's shaders, after changing their GLSL (brew install glslang spirv-cross)

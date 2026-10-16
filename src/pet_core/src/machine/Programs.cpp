@@ -57,4 +57,69 @@ std::size_t queueKeys( Machine& machine, std::string_view keys )
   return taken;
 }
 
+RunResult typeKeys( Machine& machine, std::string_view keys, std::uint64_t timeoutFrames )
+{
+  RunResult total{ .reason = StopReason::COMPLETED };
+  std::uint64_t const start = machine.frame();
+  while ( !keys.empty() )
+  {
+    keys.remove_prefix( queueKeys( machine, keys ) );
+    for ( ;; )
+    {
+      RunResult const run = machine.runFrames( 1 );
+      total.cycles += run.cycles;
+      total.frames += run.frames;
+      total.reason = run.reason;
+      if ( run.reason != StopReason::COMPLETED )
+      {
+        return total;
+      }
+      if ( machine.peek( KEYBOARD_COUNT ) == 0 )
+      {
+        break;
+      }
+      if ( machine.frame() - start >= timeoutFrames )
+      {
+        total.reason = StopReason::TIMEOUT;
+        return total;
+      }
+    }
+  }
+  return total;
+}
+
+std::string petsciiTyped( std::string_view text )
+{
+  std::string typed;
+  while ( !text.empty() )
+  {
+    if ( text.starts_with( "\xe2\x86\x90" ) )
+    {
+      typed.push_back( '\x5f' );
+      text.remove_prefix( 3 );
+      continue;
+    }
+    if ( text.starts_with( "\xe2\x86\x91" ) )
+    {
+      typed.push_back( '\x5e' );
+      text.remove_prefix( 3 );
+      continue;
+    }
+    if ( text.starts_with( "\xc2\xa3" ) )
+    {
+      typed.push_back( '\x5c' );
+      text.remove_prefix( 2 );
+      continue;
+    }
+    char c = text.front();
+    if ( c >= 'a' && c <= 'z' )
+    {
+      c = static_cast<char>( c - 'a' + 'A' );
+    }
+    typed.push_back( c );
+    text.remove_prefix( 1 );
+  }
+  return typed;
+}
+
 } // namespace pet::machine

@@ -6,6 +6,7 @@ add_library( pet_core
   src/control/AudioMethods.cpp
   src/control/CpuMethods.cpp
   src/control/DebugMethods.cpp
+  src/control/DiskMethods.cpp
   src/control/EmuMethods.cpp
   src/control/InputMethods.cpp
   src/control/MemoryMethods.cpp
@@ -27,7 +28,19 @@ add_library( pet_core
   src/machine/TraceHistory.cpp
   src/machine/Via6522.cpp
   src/machine/Video.cpp
-  src/machine/Ym2149.cpp )
+  src/machine/Ym2149.cpp
+  src/sd2pet/Buffers.cpp
+  src/sd2pet/D64Ops.cpp
+  src/sd2pet/Dos.cpp
+  src/sd2pet/DosCommands.cpp
+  src/sd2pet/ErrorMessages.cpp
+  src/sd2pet/FatOps.cpp
+  src/sd2pet/FileOps.cpp
+  src/sd2pet/HostFs.cpp
+  src/sd2pet/P00Cache.cpp
+  src/sd2pet/Parser.cpp
+  src/sd2pet/Sd2Pet.cpp
+  src/sd2pet/Utils.cpp )
 
 add_library( pet::core ALIAS pet_core )
 

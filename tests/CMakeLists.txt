@@ -5,6 +5,7 @@ add_executable( pet_tests
   cpu/Cpu6502SingleStepTest.cpp
   cpu/Cpu6502Test.cpp
   machine/BoardAndSoundTest.cpp
+  machine/DriveTest.cpp
   machine/KeyboardTest.cpp
   machine/MachineTest.cpp
   machine/StateAndDebugTest.cpp
@@ -13,6 +14,7 @@ add_executable( pet_tests
   server/JsonLinesServerTest.cpp
   server/McpServerTest.cpp
   server/NetworkServersTest.cpp
+  support/DiskImage.cpp
   support/Files.cpp )
 
 # The core's private headers as well as its public ones: the devices of the
@@ -56,3 +58,22 @@ foreach( transcript IN ITEMS lines mcp )
             WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}" )
   set_tests_properties( "control.${transcript}" PROPERTIES LABELS control )
 endforeach()
+
+# The SD2PET's transcript needs the PET running, so VICE's ROMs beside the
+# repository; without them it is left out, as the [roms] tests skip. Its disk
+# is written by pet_test_disk first, into the build's tests directory, where
+# the transcript runs: no disk image is carried in the tree.
+add_executable( pet_test_disk support/MakeTestDisk.cpp support/DiskImage.cpp )
+target_include_directories( pet_test_disk PRIVATE . )
+target_link_libraries( pet_test_disk PRIVATE pet::warnings )
+if( EXISTS "${CMAKE_SOURCE_DIR}/../vice/data/PET" )
+  add_test( NAME "control.disk.image"
+            COMMAND pet_test_disk "${CMAKE_CURRENT_BINARY_DIR}/disk" )
+  set_tests_properties( "control.disk.image" PROPERTIES FIXTURES_SETUP disk_image LABELS control )
+  add_test( NAME "control.disk"
+            COMMAND pet_cli --rom-dir "${CMAKE_SOURCE_DIR}/../vice/data/PET"
+                    --transcript "${CMAKE_CURRENT_SOURCE_DIR}/control/disk.jsonl"
+                    --expect "${CMAKE_CURRENT_SOURCE_DIR}/control/disk.expect"
+            WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}" )
+  set_tests_properties( "control.disk" PROPERTIES FIXTURES_REQUIRED disk_image LABELS control )
+endif()
