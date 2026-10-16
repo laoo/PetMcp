@@ -81,6 +81,11 @@ public:
   /// Whether the last tick's access was an opcode fetch: an instruction, or
   /// an interrupt sequence in its place, begins with it.
   [[nodiscard]] bool sync() const;
+  /// Whether the opcode the last tick fetched will be dropped for an
+  /// interrupt or reset sequence, which begins with that fetch. The 6502 has
+  /// decided it by then: it acts on what it sampled the cycle before. An
+  /// instruction boundary is a sync() that is not this.
+  [[nodiscard]] bool interrupting() const;
   /// The address of the last tick's access, and whether it read.
   [[nodiscard]] std::uint16_t address() const;
   [[nodiscard]] bool reading() const;

@@ -1,4 +1,4 @@
-{"id":1,"ok":true,"result":{"version":"devel","paused":false}}
+{"id":1,"ok":true,"result":{"version":"devel","paused":false,"running":false,"error":"no ROM directory is given"}}
 {"id":0,"ok":false,"error":{"code":"bad_request","message":"Request is not valid JSON"}}
 {"id":0,"ok":false,"error":{"code":"bad_request","message":"Request must be a JSON object"}}
 {"id":0,"ok":false,"error":{"code":"bad_request","message":"Missing or invalid field: id"}}
@@ -8,6 +8,12 @@
 {"id":4,"ok":false,"error":{"code":"bad_request","message":"Field params must be an object"}}
 {"id":5,"ok":false,"error":{"code":"unknown_method","message":"Unknown method: emu.nonsense"}}
 {"id":17,"ok":true,"result":{}}
-{"id":18,"ok":true,"result":{"version":"devel","paused":true}}
+{"id":18,"ok":true,"result":{"version":"devel","paused":true,"running":false,"error":"no ROM directory is given"}}
 {"id":19,"ok":true,"result":{}}
-{"id":20,"ok":true,"result":{"version":"devel","paused":false}}
+{"id":20,"ok":true,"result":{"version":"devel","paused":false,"running":false,"error":"no ROM directory is given"}}
+{"id":21,"ok":true,"result":{"regions":[{"name":"CPU","size":65536,"writable":true},{"name":"RAM","size":32768,"writable":true},{"name":"VIDEO_RAM","size":1024,"writable":true},{"name":"BASIC_ROM","size":8192,"writable":false},{"name":"EDITOR_ROM","size":2048,"writable":false},{"name":"KERNAL_ROM","size":4096,"writable":false},{"name":"CHARACTER_ROM","size":2048,"writable":false}]}}
+{"id":22,"ok":false,"error":{"code":"no_machine","message":"The PET is not running: no ROM directory is given"}}
+{"id":23,"ok":false,"error":{"code":"no_machine","message":"The PET is not running: no ROM directory is given"}}
+{"id":24,"ok":false,"error":{"code":"power_up_failed","message":"no ROM directory is given"}}
+{"id":25,"ok":false,"error":{"code":"bad_request","message":"power is true or false"}}
+{"id":26,"ok":false,"error":{"code":"no_machine","message":"The PET is not running: no ROM directory is given"}}

@@ -44,6 +44,20 @@ Error badRequest( std::string message )
   return Error{ .code = "bad_request", .message = std::move( message ) };
 }
 
+Error noMachine( Emulator const& emulator )
+{
+  return Error{ .code = "no_machine", .message = fmt::format( "The PET is not running: {}", emulator.powerUpError() ) };
+}
+
+std::expected<machine::Machine*, Error> machineOf( Emulator& emulator )
+{
+  if ( machine::Machine* const machine = emulator.machine() )
+  {
+    return machine;
+  }
+  return std::unexpected( noMachine( emulator ) );
+}
+
 std::expected<std::string, Error> requireString( Json const& params, std::string_view name )
 {
   auto const field = params.find( name );

@@ -17,33 +17,13 @@ A session takes work by saying *build M<n> of docs/plans/milestones.md*. Every t
 Every milestone ends with an **exit** condition that can be checked without a person looking at
 a screen.
 
-## M2: The PET
-
-- The machine: RAM, video RAM and its mirror, the ROMs read from the ROM directory, the I/O page
-  decoded as VICE's `petmem.c` does, the floating bus.
-- PIA1, PIA2 and the VIA, ported from VICE's `piacore.c` and `viacore.c` and stepped a cycle at
-  a time ([0009](../decisions/0009-stepped-a-cycle-at-a-time.md)); unit tests of their timers
-  and edges against what VICE computes.
-- The video: the beam, the retrace on PIA1 CB1 and VIA PB5, the character ROM and VIA CA2's set,
-  drawn into a 384 by 240 picture.
-- The 60 Hz interrupt, and the 6502's interrupt timing held to VICE's.
-- Methods: `emu.reset`, `emu.run_frames`, `emu.run_cycles`, `emu.run_until`, `memory.read`,
-  `memory.write`, `cpu.get_state`, `cpu.disassemble`, `video.screenshot`, `video.screen_text`
-  (the 40 by 25 screen codes as text), and the fields of `emu.status` that describe the machine.
-- A test runs the first second after power-up against `../PETTest/trace_1s.txt`, instruction by
-  instruction, and skips without it.
-- A `[roms]` test boots to `READY.` with the ROMs of `../vice/data/PET`, and skips without them.
-
-**Exit:** the trace matches; `video.screen_text` shows the boot banner and `READY.`; the
-`irqcost` and `vsync` programs of `../PETTest`, run from a test, count what README §11–12
-measured on the real PET.
-
 ## M3: Keyboard, programs and the desktop
 
 - The keyboard matrix; `input.press`, `input.set`, `input.clear`, `input.get_state` by PET key
   name, and `input.type` for text ([0014](../decisions/0014-keyboard-by-symbol.md)).
 - `program.load`: a `.prg` put into memory at its load address, BASIC's pointers set as LOAD
-  sets them, and run when asked (`RUN` for BASIC, a `SYS` otherwise).
+  sets them (`machine::loadProgram`), and run when asked (`RUN` for BASIC, a `SYS` otherwise,
+  typed into the keyboard buffer by `machine::queueKeys`).
 - The desktop: frames run at 60.1 Hz, the host keyboard mapped by symbol, the Input window and
   its bindings, the monitor's phosphor colour and pixel shape in the Display menu, File > Open
   and drag-and-drop for a `.prg`.

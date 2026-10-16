@@ -3,10 +3,21 @@ add_library( pet_core
   src/PortabilityChecks.cpp
   src/Version.cpp
   src/control/Dispatcher.cpp
+  src/control/CpuMethods.cpp
   src/control/EmuMethods.cpp
+  src/control/MemoryMethods.cpp
   src/control/Params.cpp
+  src/control/RunMethods.cpp
+  src/control/VideoMethods.cpp
   src/cpu/Cpu6502.cpp
-  src/cpu/Disassembler.cpp )
+  src/cpu/Disassembler.cpp
+  src/machine/Machine.cpp
+  src/machine/Pia6520.cpp
+  src/machine/Programs.cpp
+  src/machine/Roms.cpp
+  src/machine/Screen.cpp
+  src/machine/Via6522.cpp
+  src/machine/Video.cpp )
 
 add_library( pet::core ALIAS pet_core )
 

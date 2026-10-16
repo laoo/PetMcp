@@ -49,9 +49,14 @@ the cycle's order ([0009](decisions/0009-stepped-a-cycle-at-a-time.md)):
 | YM2149F | 2 or 1 clocks a cycle | [hardware/expansion-board.md](hardware/expansion-board.md) |
 | IEEE-488 bus, SD2PET | a cycle | [0010](decisions/0010-sd2pet.md) |
 
-A frame is the span between two starts of the vertical retrace. The retrace drives PIA1 CB1 (the
-60 Hz interrupt) and VIA PB5, at the moments VICE and TangPet agree on: on after the 40th
-character of line 199, off at the same point of line 259.
+A frame is the span between two starts of the vertical blank, and a run's frame boundary is where
+it begins. The blank drives PIA1 CB1 (the 60 Hz interrupt) and VIA PB5, from the end of the cycle
+that reads line 199's last character to the same point of line 259, where VICE and TangPet both
+have it ([hardware/machine.md](hardware/machine.md) on how its phase was fixed).
+
+Within a cycle, the 6502 makes its access first; then the video reads its character, the VIA's
+timers run what is due, and the interrupt line is settled for the 6502 to sample in the next
+cycle. That is VICE's order, whose alarms for a clock run after the CPU's access of that clock.
 
 ## The machine
 

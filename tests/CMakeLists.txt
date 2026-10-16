@@ -3,6 +3,9 @@ add_executable( pet_tests
   control/DispatcherTest.cpp
   cpu/Cpu6502SingleStepTest.cpp
   cpu/Cpu6502Test.cpp
+  machine/MachineTest.cpp
+  machine/TraceTest.cpp
+  machine/Via6522Test.cpp
   server/JsonLinesServerTest.cpp
   server/McpServerTest.cpp
   server/NetworkServersTest.cpp
@@ -19,7 +22,15 @@ target_include_directories( pet_tests SYSTEM PRIVATE $<TARGET_PROPERTY:miniz,INT
 
 # Where the [cpu-suite] tests find the SingleStepTests suite
 # scripts/fetch-6502-tests.sh downloads; they skip without it.
-target_compile_definitions( pet_tests PRIVATE PET_TEST_6502_DIR="${CMAKE_SOURCE_DIR}/build/tools/6502" )
+target_compile_definitions( pet_tests
+  PRIVATE PET_TEST_6502_DIR="${CMAKE_SOURCE_DIR}/build/tools/6502" )
+
+# Where the [roms] tests find the PET's ROMs and the owner's references beside
+# the repository; they skip without them.
+target_compile_definitions( pet_tests
+  PRIVATE PET_TEST_ROM_DIR="${CMAKE_SOURCE_DIR}/../vice/data/PET"
+          PET_TEST_TRACE="${CMAKE_SOURCE_DIR}/../PETTest/trace_1s.txt"
+          PET_TEST_PETTEST_DIR="${CMAKE_SOURCE_DIR}/../PETTest" )
 
 target_link_libraries( pet_tests
   PRIVATE pet::server Catch2::Catch2WithMain pet::warnings httplib )

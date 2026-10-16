@@ -27,6 +27,10 @@ Json resultResponse( std::uint64_t id, Json result )
 Dispatcher::Dispatcher( Emulator& emulator )
 {
   addEmuMethods( *this, emulator );
+  addRunMethods( *this, emulator );
+  addMemoryMethods( *this, emulator );
+  addCpuMethods( *this, emulator );
+  addVideoMethods( *this, emulator );
 }
 
 Json Dispatcher::handle( Json const& request ) const

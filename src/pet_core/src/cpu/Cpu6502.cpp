@@ -127,6 +127,16 @@ bool Cpu6502::sync() const
   return ( mState->pins & M6502_SYNC ) != 0;
 }
 
+bool Cpu6502::interrupting() const
+{
+  // What m6502_tick() tests at the start of the next tick, before it shifts
+  // the pipelines again: an IRQ sampled two cycles before, an NMI edge in any
+  // cycle before, or RES.
+  m6502_t const& cpu = mState->cpu;
+  return sync() &&
+         ( ( cpu.irq_pip & 0x400U ) != 0 || ( cpu.nmi_pip & 0xfc00U ) != 0 || ( mState->pins & M6502_RES ) != 0 );
+}
+
 std::uint16_t Cpu6502::address() const
 {
   return M6502_GET_ADDR( mState->pins );

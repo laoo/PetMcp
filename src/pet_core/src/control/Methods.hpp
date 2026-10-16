@@ -17,8 +17,18 @@ namespace pet::control
 {
 
 void addEmuMethods( Dispatcher& dispatcher, Emulator& emulator );
+void addRunMethods( Dispatcher& dispatcher, Emulator& emulator );
+void addMemoryMethods( Dispatcher& dispatcher, Emulator& emulator );
+void addCpuMethods( Dispatcher& dispatcher, Emulator& emulator );
+void addVideoMethods( Dispatcher& dispatcher, Emulator& emulator );
 
 Error badRequest( std::string message );
+
+/// The `no_machine` error: why the PET is not running.
+Error noMachine( Emulator const& emulator );
+
+/// The emulator's machine, or the `no_machine` error.
+std::expected<machine::Machine*, Error> machineOf( Emulator& emulator );
 
 /// One parameter of a method, as its schema describes it: a JSON Schema type
 /// ("string", "integer", "boolean", "object", "array"), and what it means.

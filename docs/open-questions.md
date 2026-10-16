@@ -39,6 +39,6 @@ sent?
 
 ## The monitor's shape and colour
 
-The 384 by 240 picture's pixels are not square on the PET's monitor, and its phosphor is green
+The 320 by 200 picture's pixels are not square on the PET's monitor, and its phosphor is green
 or white depending on the year. Which shape and which colours does the Display menu offer, and
 what is its default?

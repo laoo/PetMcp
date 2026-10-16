@@ -63,6 +63,7 @@ it, never "at the end of the session".
 
 ### Hardware
 - [The 6502](hardware/cpu.md): where the emulated 6502 departs from m6502.h or m6502.h from the NMOS 6502, and the evidence
+- [The machine](hardware/machine.md): where the emulated PET follows VICE, TangPet or neither, and the evidence
 - [The expansion board](hardware/expansion-board.md): two YM2149Fs, character RAM and 1 MB of banked RAM in the PET's sockets
 
 ### Plans
