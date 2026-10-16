@@ -11,6 +11,7 @@
 #include <algorithm>
 #include <array>
 #include <cmath>
+#include <fstream>
 #include <utility>
 
 namespace pet::app
@@ -19,7 +20,6 @@ namespace pet::app
 namespace
 {
 
-constexpr auto SCREEN_WIDTH = static_cast<float>( video::SCREEN_WIDTH );
 constexpr auto SCREEN_HEIGHT = static_cast<float>( video::SCREEN_HEIGHT );
 
 // The window opens at about three times the screen, plus room for the menu bar
@@ -29,6 +29,11 @@ constexpr int INITIAL_HEIGHT = 900;
 
 constexpr char const* SCREEN_WINDOW = "Screen";
 constexpr char const* STATUS_WINDOW = "Status";
+constexpr char const* INPUT_WINDOW = "Input";
+
+/// The frames after power-up by which the PET is at READY, with a margin: it
+/// gets there in 88.
+constexpr std::int64_t READY_FRAME = 100;
 
 std::string sdlError( std::string const& what )
 {
@@ -83,7 +88,13 @@ std::expected<std::unique_ptr<Application>, std::string> Application::create( Se
   SDL_SetGPUSwapchainParameters( device, window, SDL_GPU_SWAPCHAINCOMPOSITION_SDR, SDL_GPU_PRESENTMODE_VSYNC );
 
   // From here on the destructor owns the window and the device.
+  bool const romsGiven = !settings.romDirectory.empty();
   std::unique_ptr<Application> application{ new Application{ window, device, std::move( settings ) } };
+  if ( !romsGiven && application->mSettings.contains( "rom_directory" ) &&
+       application->mSettings.at( "rom_directory" ).is_string() )
+  {
+    application->setRomDirectory( application->mSettings.at( "rom_directory" ).get<std::string>(), false );
+  }
   if ( !application->mScreen->valid() )
   {
     return std::unexpected( sdlError( "creating the screen texture" ) );
@@ -100,7 +111,8 @@ Application::Application( SDL_Window* window, SDL_GPUDevice* device, Settings se
       mScreen{ std::make_unique<GpuTexture>( device,
                                              static_cast<std::uint32_t>( video::SCREEN_WIDTH ),
                                              static_cast<std::uint32_t>( video::SCREEN_HEIGHT ) ) },
-      mFrame{ blankScreen() }, mEmulation{ std::make_unique<EmulationThread>( std::move( settings ) ) },
+      mRawFrame{ blankScreen() }, mFrame{ blankScreen() },
+      mEmulation{ std::make_unique<EmulationThread>( std::move( settings ) ) },
       mRenderer{ std::make_unique<ScreenRenderer>( device ) }
 {
   IMGUI_CHECKVERSION();
@@ -114,6 +126,8 @@ Application::Application( SDL_Window* window, SDL_GPUDevice* device, Settings se
   {
     mImguiIniPath = std::string{ prefPath } + "imgui.ini";
     mDisplayPath = std::filesystem::path{ prefPath } / "display.json";
+    mKeyboardPath = std::filesystem::path{ prefPath } / "keyboard.json";
+    mSettingsPath = std::filesystem::path{ prefPath } / "settings.json";
     SDL_free( prefPath );
     io.IniFilename = mImguiIniPath.c_str();
   }
@@ -124,6 +138,18 @@ Application::Application( SDL_Window* window, SDL_GPUDevice* device, Settings se
   if ( !mDisplayPath.empty() )
   {
     mDisplay = loadDisplaySettings( mDisplayPath );
+  }
+  if ( !mKeyboardPath.empty() )
+  {
+    mKeyboard.load( mKeyboardPath );
+  }
+  if ( std::ifstream stream{ mSettingsPath }; !mSettingsPath.empty() && stream )
+  {
+    auto json = control::Json::parse( stream, nullptr, false );
+    if ( json.is_object() )
+    {
+      mSettings = std::move( json );
+    }
   }
 
   float const scale = SDL_GetDisplayContentScale( SDL_GetPrimaryDisplay() );
@@ -166,6 +192,17 @@ void Application::run()
     while ( SDL_PollEvent( &event ) )
     {
       ImGui_ImplSDL3_ProcessEvent( &event );
+      ImGuiIO const& io = ImGui::GetIO();
+      mKeyboard.handle( event, mScreenFocused && !io.WantTextInput );
+      if ( event.type == SDL_EVENT_DROP_FILE && event.drop.data != nullptr )
+      {
+        runProgram( event.drop.data );
+      }
+      else if ( event.type == SDL_EVENT_KEY_DOWN && event.key.key == SDLK_O && !event.key.repeat &&
+                ( event.key.mod & ( SDL_KMOD_GUI | SDL_KMOD_CTRL ) ) != 0 )
+      {
+        openProgram();
+      }
       if ( event.type == SDL_EVENT_QUIT ||
            ( event.type == SDL_EVENT_WINDOW_CLOSE_REQUESTED && event.window.windowID == SDL_GetWindowID( mWindow ) ) )
       {
@@ -181,6 +218,7 @@ void Application::run()
       continue;
     }
 
+    takeChosen();
     updateEmulation();
 
     ImGui_ImplSDLGPU3_NewFrame();
@@ -215,9 +253,133 @@ void Application::serve( std::uint16_t linePort, std::uint16_t mcpPort )
 
 void Application::updateEmulation()
 {
-  if ( mEmulation->takePicture( mPicturesShown, mFrame ) )
+  mEmulation->setHostKeys( mKeyboard.matrix() );
+  if ( mEmulation->takePicture( mPicturesShown, mRawFrame ) )
   {
-    mFrameChanged = true;
+    tint();
+  }
+}
+
+void Application::tint()
+{
+  auto const colour = colourOf( mDisplay.phosphor );
+  mFrame.resize( mRawFrame.size() );
+  for ( std::size_t at = 0; at + 3 < mRawFrame.size(); at += 4 )
+  {
+    bool const lit = mRawFrame[at] != 0;
+    mFrame[at] = lit ? colour[0] : 0;
+    mFrame[at + 1] = lit ? colour[1] : 0;
+    mFrame[at + 2] = lit ? colour[2] : 0;
+    mFrame[at + 3] = 0xff;
+  }
+  mFrameChanged = true;
+}
+
+void Application::runProgram( std::filesystem::path const& path )
+{
+  auto const status = request( "emu.status" );
+  bool const ready =
+      status.at( "ok" ) == true && status.at( "result" ).value( "frame", std::int64_t{ 0 } ) >= READY_FRAME;
+  if ( !ready )
+  {
+    mProgramWaiting = path;
+    return;
+  }
+  mProgramWaiting.reset();
+  auto const response = request( "program.load", { { "path", path.string() }, { "run", true } } );
+  mLastError = response.at( "ok" ) == true ? std::string{} : response.at( "error" ).at( "message" ).get<std::string>();
+}
+
+void Application::takeChosen()
+{
+  std::optional<std::filesystem::path> program;
+  std::optional<std::filesystem::path> directory;
+  {
+    std::scoped_lock const lock{ mChosenMutex };
+    program.swap( mChosenProgram );
+    directory.swap( mChosenRomDirectory );
+  }
+  if ( directory )
+  {
+    setRomDirectory( *directory, true );
+  }
+  if ( program )
+  {
+    runProgram( *program );
+  }
+  else if ( mProgramWaiting )
+  {
+    runProgram( *mProgramWaiting );
+  }
+}
+
+void Application::openProgram()
+{
+  static constexpr std::array<SDL_DialogFileFilter, 1> FILTERS{ { { .name = "PET programs", .pattern = "prg" } } };
+  SDL_ShowOpenFileDialog(
+      []( void* self, char const* const* files, int /*filter*/ )
+      {
+        // Null on an error, empty when the dialog was cancelled.
+        if ( files != nullptr && files[0] != nullptr )
+        {
+          auto* const application = static_cast<Application*>( self );
+          std::scoped_lock const lock{ application->mChosenMutex };
+          application->mChosenProgram = files[0];
+        }
+      },
+      this,
+      mWindow,
+      FILTERS.data(),
+      static_cast<int>( FILTERS.size() ),
+      nullptr,
+      false );
+}
+
+void Application::chooseRomDirectory()
+{
+  SDL_ShowOpenFolderDialog(
+      []( void* self, char const* const* folders, int /*filter*/ )
+      {
+        if ( folders != nullptr && folders[0] != nullptr )
+        {
+          auto* const application = static_cast<Application*>( self );
+          std::scoped_lock const lock{ application->mChosenMutex };
+          application->mChosenRomDirectory = folders[0];
+        }
+      },
+      this,
+      mWindow,
+      nullptr,
+      false );
+}
+
+void Application::setRomDirectory( std::filesystem::path const& directory, bool keep )
+{
+  auto const response = request( "emu.set_rom_directory", { { "path", directory.string() } } );
+  if ( response.at( "ok" ) != true )
+  {
+    mLastError = response.at( "error" ).at( "message" ).get<std::string>();
+    return;
+  }
+  mLastError.clear();
+  if ( keep )
+  {
+    keepSetting( "rom_directory", directory.string() );
+  }
+}
+
+void Application::keepSetting( std::string const& key, control::Json value )
+{
+  mSettings[key] = std::move( value );
+  if ( mSettingsPath.empty() )
+  {
+    return;
+  }
+  std::ofstream stream{ mSettingsPath };
+  stream << mSettings.dump( 2 ) << '\n';
+  if ( !stream )
+  {
+    spdlog::warn( "cannot write the settings to {}", mSettingsPath.string() );
   }
 }
 
@@ -230,6 +392,7 @@ void Application::drawInterface()
   ImGui::SetNextWindowDockID( dockspace, ImGuiCond_FirstUseEver );
   drawScreenWindow();
   drawStatusWindow();
+  drawInputWindow();
 
   if ( mShowImguiDemo )
   {
@@ -245,6 +408,15 @@ void Application::drawMenuBar()
   }
   if ( ImGui::BeginMenu( "File" ) )
   {
+    if ( ImGui::MenuItem( "Open program...", SDL_GetPlatform() == std::string_view{ "macOS" } ? "Cmd+O" : "Ctrl+O" ) )
+    {
+      openProgram();
+    }
+    if ( ImGui::MenuItem( "Choose ROM directory..." ) )
+    {
+      chooseRomDirectory();
+    }
+    ImGui::Separator();
     if ( ImGui::MenuItem( "Quit" ) )
     {
       mQuit = true;
@@ -260,6 +432,14 @@ void Application::drawMenuBar()
     {
       static_cast<void>( request( mPaused ? "emu.pause" : "emu.resume" ) );
     }
+    if ( ImGui::MenuItem( "Reset" ) )
+    {
+      static_cast<void>( request( "emu.reset" ) );
+    }
+    if ( ImGui::MenuItem( "Power off and on" ) )
+    {
+      static_cast<void>( request( "emu.reset", { { "power", true } } ) );
+    }
     ImGui::EndMenu();
   }
   if ( ImGui::BeginMenu( "Display" ) )
@@ -270,6 +450,7 @@ void Application::drawMenuBar()
   if ( ImGui::BeginMenu( "View" ) )
   {
     ImGui::MenuItem( STATUS_WINDOW, nullptr, &mShowStatus );
+    ImGui::MenuItem( INPUT_WINDOW, nullptr, &mShowInput );
     ImGui::Separator();
     ImGui::MenuItem( "ImGui demo", nullptr, &mShowImguiDemo );
     ImGui::EndMenu();
@@ -286,6 +467,26 @@ void Application::drawDisplayMenu()
     if ( ImGui::MenuItem( std::string{ nameOf( preset ) }.c_str(), nullptr, mDisplay.preset == preset ) )
     {
       mDisplay.preset = preset;
+      changed = true;
+    }
+  }
+  ImGui::Separator();
+  for ( auto const phosphor :
+        { DisplaySettings::Phosphor::GREEN, DisplaySettings::Phosphor::WHITE, DisplaySettings::Phosphor::AMBER } )
+  {
+    if ( ImGui::MenuItem( std::string{ nameOf( phosphor ) }.c_str(), nullptr, mDisplay.phosphor == phosphor ) )
+    {
+      mDisplay.phosphor = phosphor;
+      tint();
+      changed = true;
+    }
+  }
+  ImGui::Separator();
+  for ( auto const shape : { DisplaySettings::Shape::SQUARE, DisplaySettings::Shape::MONITOR } )
+  {
+    if ( ImGui::MenuItem( std::string{ nameOf( shape ) }.c_str(), nullptr, mDisplay.shape == shape ) )
+    {
+      mDisplay.shape = shape;
       changed = true;
     }
   }
@@ -321,19 +522,28 @@ void Application::drawScreenWindow()
   ImGui::PushStyleVar( ImGuiStyleVar_WindowPadding, ImVec2{ 0.0F, 0.0F } );
   bool const open = ImGui::Begin( SCREEN_WINDOW, nullptr, ImGuiWindowFlags_NoScrollbar );
   ImGui::PopStyleVar();
+  bool const focused = ImGui::IsWindowFocused( ImGuiFocusedFlags_RootAndChildWindows );
+  if ( mScreenFocused && !focused )
+  {
+    // Keys held as the screen loses the keyboard would never be let go.
+    mKeyboard.releaseAll();
+  }
+  mScreenFocused = focused;
   mScreenShown = false;
   if ( open )
   {
     // Sized in the display's pixels, which the shader draws, centred; scaled
-    // by whole multiples, or as large as fits.
+    // by whole multiples of its height, or as large as fits, in the shape the
+    // Display menu chooses.
     float const pixelsPerPoint = ImGui::GetIO().DisplayFramebufferScale.y;
     ImVec2 const available = ImGui::GetContentRegionAvail();
-    float scale = std::min( available.x * pixelsPerPoint / SCREEN_WIDTH, available.y * pixelsPerPoint / SCREEN_HEIGHT );
+    float const shownWidth = SCREEN_HEIGHT * aspectOf( mDisplay.shape );
+    float scale = std::min( available.x * pixelsPerPoint / shownWidth, available.y * pixelsPerPoint / SCREEN_HEIGHT );
     if ( mDisplay.integerScale )
     {
       scale = std::max( 1.0F, std::floor( scale ) );
     }
-    auto const width = static_cast<std::uint32_t>( std::lround( SCREEN_WIDTH * scale ) );
+    auto const width = static_cast<std::uint32_t>( std::lround( shownWidth * scale ) );
     auto const height = static_cast<std::uint32_t>( std::lround( SCREEN_HEIGHT * scale ) );
     ImVec2 const size{ static_cast<float>( width ) / pixelsPerPoint, static_cast<float>( height ) / pixelsPerPoint };
     // Centred, on a whole pixel of the display: the shader's output is shown a
@@ -379,16 +589,94 @@ void Application::drawStatusWindow()
     {
       auto const& result = response.at( "result" );
       ImGui::Text( "Version: %s", result.at( "version" ).get_ref<std::string const&>().c_str() );
+      if ( result.at( "running" ) == true )
+      {
+        ImGui::Text( "Frame: %lld", static_cast<long long>( result.at( "frame" ).get<std::int64_t>() ) );
+        ImGui::Text( "Cycle: %lld", static_cast<long long>( result.at( "cycles" ).get<std::int64_t>() ) );
+      }
+      else
+      {
+        ImGui::TextWrapped( "Not running: %s", result.at( "error" ).get_ref<std::string const&>().c_str() );
+        ImGui::TextWrapped( "Choose the ROMs' directory with File > Choose ROM directory." );
+      }
       if ( result.at( "paused" ) == true )
       {
         ImGui::TextUnformatted( "Paused" );
       }
     }
-    else
+    if ( !mLastError.empty() )
     {
-      ImGui::Text( "emu.status failed: %s", response.at( "error" ).dump().c_str() );
+      ImGui::TextWrapped( "%s", mLastError.c_str() );
     }
     ImGui::Text( "Interface: %.1f fps", static_cast<double>( ImGui::GetIO().Framerate ) );
+  }
+  ImGui::End();
+}
+
+void Application::drawInputWindow()
+{
+  if ( !mShowInput )
+  {
+    return;
+  }
+  if ( ImGui::Begin( INPUT_WINDOW, &mShowInput ) )
+  {
+    ImGui::TextWrapped( "Keys that make a character type it; these keys are bound to the PET's own. SHIFT on the "
+                        "host shifts them." );
+    if ( ImGui::BeginTable( "bindings", 3, ImGuiTableFlags_RowBg | ImGuiTableFlags_SizingFixedFit ) )
+    {
+      auto const& bindings = mKeyboard.bindings();
+      for ( std::size_t i = 0; i < bindings.size(); ++i )
+      {
+        ImGui::TableNextRow();
+        ImGui::TableNextColumn();
+        ImGui::TextUnformatted( bindings.at( i ).name.data(),
+                                bindings.at( i ).name.data() + bindings.at( i ).name.size() );
+        ImGui::TableNextColumn();
+        char const* bound = "-";
+        if ( mKeyboard.capturing() == i )
+        {
+          bound = "press a key...";
+        }
+        else if ( bindings.at( i ).key != SDLK_UNKNOWN )
+        {
+          bound = SDL_GetKeyName( bindings.at( i ).key );
+        }
+        ImGui::TextUnformatted( bound );
+        ImGui::TableNextColumn();
+        ImGui::PushID( static_cast<int>( i ) );
+        if ( ImGui::SmallButton( "Bind" ) )
+        {
+          mKeyboard.capture( i );
+        }
+        ImGui::PopID();
+      }
+      ImGui::EndTable();
+    }
+    if ( !mKeyboardPath.empty() && !mKeyboard.capturing() && ImGui::Button( "Keep these" ) )
+    {
+      mKeyboard.save( mKeyboardPath );
+    }
+
+    // The PET's matrix, the keys down lit.
+    ImGui::SeparatorText( "Keys down" );
+    machine::KeyMatrix const held = mKeyboard.matrix();
+    for ( unsigned row = 0; row < machine::KEYBOARD_ROWS; ++row )
+    {
+      for ( unsigned column = 0; column < machine::KEYBOARD_COLUMNS; ++column )
+      {
+        std::string_view const name = machine::nameOf(
+            machine::PetKey{ .row = static_cast<std::uint8_t>( row ), .column = static_cast<std::uint8_t>( column ) } );
+        bool const down = ( held.at( row ) & ( 1U << column ) ) != 0;
+        if ( column > 0 )
+        {
+          ImGui::SameLine();
+        }
+        ImGui::BeginDisabled( !down );
+        ImGui::Button( std::string{ name.empty() ? "." : name.substr( 0, 3 ) }.c_str(), ImVec2{ 36.0F, 0.0F } );
+        ImGui::EndDisabled();
+      }
+    }
   }
   ImGui::End();
 }

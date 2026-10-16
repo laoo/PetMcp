@@ -1,5 +1,6 @@
 #include "EmulationThread.hpp"
 
+#include <algorithm>
 #include <chrono>
 #include <utility>
 
@@ -12,6 +13,13 @@ namespace
 /// How long the thread sleeps at most while it has nothing to run, so that it
 /// notices a pause lifted.
 constexpr std::chrono::milliseconds IDLE_WAIT{ 20 };
+
+/// The PET's frame rate, some 60.1 Hz.
+constexpr double FRAMES_PER_SECOND = 1'000'000.0 / 16'640.0;
+
+/// The most frames run to catch up: after a stall, such as a long request, the
+/// rest of the backlog is dropped rather than run at full speed.
+constexpr double MAX_FRAMES_OWED = 4.0;
 
 control::Json shuttingDown()
 {
@@ -64,6 +72,28 @@ bool EmulationThread::paused() const
   return mPaused;
 }
 
+void EmulationThread::setHostKeys( machine::KeyMatrix const& keys )
+{
+  std::scoped_lock const lock{ mHostKeysMutex };
+  mHostKeys = keys;
+}
+
+void EmulationThread::publishPicture()
+{
+  machine::Machine const* const machine = mEmulator.machine();
+  if ( machine == nullptr ||
+       ( mEmulator.powerUps() == mPicturePowerUp && machine->picturesDrawn() == mMachinePictures ) )
+  {
+    return;
+  }
+  mPicturePowerUp = mEmulator.powerUps();
+  mMachinePictures = machine->picturesDrawn();
+  auto const picture = machine->picture();
+  std::scoped_lock const lock{ mPictureMutex };
+  mPicture.assign( picture.begin(), picture.end() );
+  ++mPicturesDrawn;
+}
+
 bool EmulationThread::takePicture( std::int64_t& picturesSeen, std::vector<std::uint8_t>& out )
 {
   std::scoped_lock const lock{ mPictureMutex };
@@ -96,9 +126,14 @@ void EmulationThread::serveRequests()
 
 void EmulationThread::loop()
 {
+  using Clock = std::chrono::steady_clock;
+  auto last = Clock::now();
+  double owed = 0.0;
   for ( ;; )
   {
     serveRequests();
+    // A request may have run the PET, or powered a new one up.
+    publishPicture();
     {
       std::scoped_lock const lock{ mMutex };
       if ( mStop )
@@ -106,10 +141,40 @@ void EmulationThread::loop()
         break;
       }
     }
-    mPaused = mEmulator.paused();
+    bool const paused = mEmulator.paused();
+    mPaused = paused;
+
+    // The host's clock paces the emulation, so that it runs at the PET's
+    // speed whatever the display's refresh rate.
+    auto const now = Clock::now();
+    double const elapsed = std::chrono::duration<double>( now - last ).count();
+    last = now;
+    machine::Machine* const machine = mEmulator.machine();
+    auto wakeAt = now + IDLE_WAIT;
+    if ( machine == nullptr || paused )
+    {
+      owed = 0.0;
+    }
+    else
+    {
+      owed = std::min( owed + ( elapsed * FRAMES_PER_SECOND ), MAX_FRAMES_OWED );
+      if ( owed >= 1.0 )
+      {
+        owed -= 1.0;
+        {
+          std::scoped_lock const lock{ mHostKeysMutex };
+          machine->setHostKeys( mHostKeys );
+        }
+        machine->runFrames( 1 );
+        publishPicture();
+        continue;
+      }
+      wakeAt = now + std::chrono::duration_cast<Clock::duration>(
+                         std::chrono::duration<double>( ( 1.0 - owed ) / FRAMES_PER_SECOND ) );
+    }
 
     std::unique_lock lock{ mMutex };
-    mWake.wait_for( lock, IDLE_WAIT, [this] { return mStop || !mPending.empty(); } );
+    mWake.wait_until( lock, wakeAt, [this] { return mStop || !mPending.empty(); } );
   }
 
   // Whoever is still waiting is told why no answer comes.

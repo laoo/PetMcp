@@ -11,6 +11,7 @@
 #include <cstdint>
 #include <cstdio>
 #include <exception>
+#include <filesystem>
 #include <string>
 #include <utility>
 
@@ -34,6 +35,8 @@ int run( int argc, char** argv )
                { return value.starts_with( "tcp:" ) ? std::string{} : std::string{ "expected tcp:PORT" }; } );
   std::uint16_t mcpPort = 0;
   app.add_option( "--mcp-http", mcpPort, "Serve MCP over HTTP on 127.0.0.1:PORT, at /mcp" );
+  std::filesystem::path program;
+  app.add_option( "program", program, "A .prg to load and run once the PET is ready" )->check( CLI::ExistingFile );
   CLI11_PARSE( app, argc, argv );
   std::uint16_t const linePort =
       server.empty() ? std::uint16_t{ 0 } : static_cast<std::uint16_t>( std::stoul( server.substr( 4 ) ) );
@@ -45,6 +48,10 @@ int run( int argc, char** argv )
     return 1;
   }
   ( *application )->serve( linePort, mcpPort );
+  if ( !program.empty() )
+  {
+    ( *application )->runProgram( program );
+  }
   ( *application )->run();
   return 0;
 }

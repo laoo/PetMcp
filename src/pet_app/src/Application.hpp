@@ -2,6 +2,7 @@
 
 #include "EmulationThread.hpp"
 #include "GpuTexture.hpp"
+#include "HostKeyboard.hpp"
 #include "ScreenRenderer.hpp"
 
 #include "pet/Emulator.hpp"
@@ -17,6 +18,8 @@
 #include <expected>
 #include <filesystem>
 #include <memory>
+#include <mutex>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -39,6 +42,10 @@ public:
   /// Throws std::runtime_error when a port cannot be had.
   void serve( std::uint16_t linePort, std::uint16_t mcpPort );
 
+  /// Loads the .prg at `path` and runs it, through the dispatcher, as an agent
+  /// would; when the PET has only just been powered up, once it is ready.
+  void runProgram( std::filesystem::path const& path );
+
   ~Application();
 
   Application( Application const& ) = delete;
@@ -55,8 +62,21 @@ private:
   /// Answers a request of the control protocol, on the emulation thread.
   control::Json request( std::string const& method, control::Json params = control::Json::object() );
 
-  /// Takes the last picture the emulation thread completed.
+  /// Hands the keyboard to the emulation thread, and takes the last picture
+  /// it completed.
   void updateEmulation();
+  /// Lights the picture's dots in the phosphor's colour.
+  void tint();
+  /// Takes what the file dialogs chose, if they have, and loads a program
+  /// waiting for the PET to be ready.
+  void takeChosen();
+
+  void openProgram();
+  void chooseRomDirectory();
+  /// Reads the ROMs from `directory`, and keeps it for the next start when
+  /// `keep`.
+  void setRomDirectory( std::filesystem::path const& directory, bool keep );
+  void keepSetting( std::string const& key, control::Json value );
 
   /// Lays out one frame of the user interface.
   void drawInterface();
@@ -64,6 +84,7 @@ private:
   void drawDisplayMenu();
   void drawScreenWindow();
   void drawStatusWindow();
+  void drawInputWindow();
 
   /// Uploads what changed, then renders the interface into the swapchain.
   void renderFrame();
@@ -71,6 +92,8 @@ private:
   SDL_Window* mWindow;
   SDL_GPUDevice* mDevice;
   std::unique_ptr<GpuTexture> mScreen;
+  /// The picture as the emulator drew it, lit dots white, and as shown.
+  std::vector<std::uint8_t> mRawFrame;
   std::vector<std::uint8_t> mFrame;
   bool mFrameChanged{ true };
   std::unique_ptr<EmulationThread> mEmulation;
@@ -78,18 +101,33 @@ private:
   std::unique_ptr<server::McpServer> mMcp;
   std::unique_ptr<server::McpHttpServer> mMcpHttp;
   std::unique_ptr<ScreenRenderer> mRenderer;
-  /// Where the display settings are kept, beside imgui.ini; empty when they
-  /// are not kept.
+  HostKeyboard mKeyboard;
+  /// Where the display settings, the keyboard map and the application's own
+  /// settings are kept, beside imgui.ini; empty when they are not kept.
   std::filesystem::path mDisplayPath;
+  std::filesystem::path mKeyboardPath;
+  std::filesystem::path mSettingsPath;
+  control::Json mSettings = control::Json::object();
   DisplaySettings mDisplay;
-  /// Whether the screen was drawn into the renderer's target this frame.
+  /// Whether the screen was drawn into the renderer's target this frame, and
+  /// whether it had the focus, which gives the PET the keyboard.
   bool mScreenShown{};
+  bool mScreenFocused{};
   std::string mImguiIniPath;
   bool mQuit{};
   bool mShowStatus{ true };
+  bool mShowInput{};
   bool mPaused{};
   std::int64_t mPicturesShown{ -1 };
   bool mShowImguiDemo{};
+  std::string mLastError;
+  /// What the dialogs chose, waiting to be taken: they answer on threads of
+  /// their own.
+  std::mutex mChosenMutex;
+  std::optional<std::filesystem::path> mChosenProgram;
+  std::optional<std::filesystem::path> mChosenRomDirectory;
+  /// A program to run once the PET is ready.
+  std::optional<std::filesystem::path> mProgramWaiting;
 };
 
 } // namespace pet::app

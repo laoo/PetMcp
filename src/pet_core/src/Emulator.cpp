@@ -25,8 +25,20 @@ std::expected<void, std::string> Emulator::powerUp()
     return std::unexpected( roms.error() );
   }
   mMachine = std::make_unique<machine::Machine>( std::move( *roms ) );
+  ++mPowerUps;
   mPowerUpError.clear();
   return {};
+}
+
+std::expected<void, std::string> Emulator::setRomDirectory( std::filesystem::path const& directory )
+{
+  std::filesystem::path const previous = std::exchange( mSettings.romDirectory, directory );
+  auto powered = powerUp();
+  if ( !powered )
+  {
+    mSettings.romDirectory = previous;
+  }
+  return powered;
 }
 
 machine::Machine* Emulator::machine()
@@ -37,6 +49,11 @@ machine::Machine* Emulator::machine()
 machine::Machine const* Emulator::machine() const
 {
   return mMachine.get();
+}
+
+std::uint64_t Emulator::powerUps() const
+{
+  return mPowerUps;
 }
 
 std::string const& Emulator::powerUpError() const

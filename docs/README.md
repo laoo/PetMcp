@@ -60,6 +60,8 @@ it, never "at the end of the session".
 - [0012: The screen's shaders are GLSL, compiled offline to SPIR-V and MSL](decisions/0012-shaders-are-compiled-offline.md)
 - [0013: CI builds three platforms, and a tag makes a release](decisions/0013-ci-and-releases.md)
 - [0014: The host keyboard is mapped by symbol](decisions/0014-keyboard-by-symbol.md)
+- [0015: A letter typed on the host keeps the PET's SHIFT, and the host's layout names the character](decisions/0015-letters-keep-the-pets-shift.md)
+- [0016: The screen is green, its dots square, unless chosen otherwise](decisions/0016-the-screen-is-green-and-square.md)
 
 ### Hardware
 - [The 6502](hardware/cpu.md): where the emulated 6502 departs from m6502.h or m6502.h from the NMOS 6502, and the evidence

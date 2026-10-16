@@ -45,6 +45,24 @@ void addEmuMethods( Dispatcher& dispatcher, Emulator& emulator )
                     return Json::object();
                   } );
 
+  dispatcher.add( "emu.set_rom_directory",
+                  info( "Reads the PET's ROMs from a directory from now on, under the names VICE gives them, and "
+                        "powers it up with them. On failure what ran runs on.",
+                        { { .name = "path", .type = "string", .description = "The directory." } } ),
+                  [&emulator]( Json const& params ) -> Outcome
+                  {
+                    auto const path = requireString( params, "path" );
+                    if ( !path )
+                    {
+                      return std::unexpected( path.error() );
+                    }
+                    if ( auto const powered = emulator.setRomDirectory( *path ); !powered )
+                    {
+                      return std::unexpected( Error{ .code = "power_up_failed", .message = powered.error() } );
+                    }
+                    return Json::object();
+                  } );
+
   dispatcher.add(
       "emu.reset",
       info( "Pulls the PET's reset line: the 6502, the PIAs and the VIA reset, RAM and the video run on. With power, "

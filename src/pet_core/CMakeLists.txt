@@ -5,12 +5,15 @@ add_library( pet_core
   src/control/Dispatcher.cpp
   src/control/CpuMethods.cpp
   src/control/EmuMethods.cpp
+  src/control/InputMethods.cpp
   src/control/MemoryMethods.cpp
   src/control/Params.cpp
+  src/control/ProgramMethods.cpp
   src/control/RunMethods.cpp
   src/control/VideoMethods.cpp
   src/cpu/Cpu6502.cpp
   src/cpu/Disassembler.cpp
+  src/machine/Keyboard.cpp
   src/machine/Machine.cpp
   src/machine/Pia6520.cpp
   src/machine/Programs.cpp

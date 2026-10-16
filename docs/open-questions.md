@@ -36,9 +36,3 @@ On the hardware, `CD` sent through `PRINT#15` and followed by `LOAD"P",8` hung a
 opened with the command as its name, it worked (`../PETTest/README.md` §6). NODISKEMU's code
 does not explain it. Is it the secondary address, the first access after `CD`, or how `CD` was
 sent?
-
-## The monitor's shape and colour
-
-The 320 by 200 picture's pixels are not square on the PET's monitor, and its phosphor is green
-or white depending on the year. Which shape and which colours does the Display menu offer, and
-what is its default?

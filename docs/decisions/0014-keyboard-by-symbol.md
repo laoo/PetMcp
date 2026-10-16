@@ -1,6 +1,6 @@
 # 0014: The host keyboard is mapped by symbol
 
-**Status:** accepted
+**Status:** accepted; its rule for letters, and where the character is read, amended by [0015](0015-letters-keep-the-pets-shift.md)
 
 ## Context
 

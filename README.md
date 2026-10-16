@@ -28,7 +28,14 @@ serves.
 build/release/src/pet_app/petmcp --rom-dir /path/to/vice/data/PET --card-dir /path/to/card
 ```
 
-`--card-dir` is the directory that stands for the SD2PET's SD card.
+`--card-dir` is the directory that stands for the SD2PET's SD card. A `.prg` named after the
+options, opened with File > Open program or dropped on the window is loaded and run once the PET is
+at READY. The ROM directory can also be chosen with File > Choose ROM directory, and is then kept.
+
+The host keyboard types as a PET's would: what a key makes on the host appears on the PET, a
+letter's SHIFT is the PET's SHIFT (so capitals make graphics in the graphics set), and the keys
+that make no character, RETURN, INST/DEL, CLR/HOME, the cursor keys, RUN/STOP, RVS and the left
+arrow, are bound in the Input window.
 
 For a program or an agent, the same emulator runs headless:
 

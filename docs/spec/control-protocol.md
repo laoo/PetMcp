@@ -210,7 +210,9 @@ A request that failed:
 | `bad_request` | The request is malformed: not JSON, not an object, `id` or `method` missing or of the wrong type, `params` not an object, or a parameter missing, of the wrong type or out of its bounds. |
 | `unknown_method` | No method of that name exists. |
 | `no_machine` | The method needs the PET running, and it is not: its ROMs could not be read. The message says why. |
-| `power_up_failed` | `emu.reset` with `power` could not read the ROMs; the PET that ran runs on. |
+| `power_up_failed` | `emu.reset` with `power`, or `emu.set_rom_directory`, could not read the ROMs; the PET that ran runs on. |
+| `invalid_input` | An `input.` method was given a key name, or a text, the PET's keyboard has no key for. |
+| `load_failed` | `program.load` could not read the file, or the program is shorter than its address or does not fit in RAM. |
 | `invalid_region` | No memory region of that name, or `memory.write` was given one it cannot write: a ROM. |
 | `invalid_range` | The bytes asked for, or given to `memory.write`, run past the end of the region, or past RAM and video RAM in CPU addresses. |
 | `screenshot_failed` | The picture could not be encoded or written. |
@@ -219,9 +221,9 @@ A request that failed:
 ## 5. Methods
 
 The PET is powered up when the emulator starts, if `--rom-dir` names a directory that holds its
-ROMs under the names VICE gives them (`docs/architecture.md`, "The machine"). Every method but
-`emu.status`, `emu.pause`, `emu.resume`, `emu.reset` with `power` and `memory.list_regions`
-answers `no_machine` until it is.
+ROMs under the names VICE gives them (`docs/architecture.md`, "The machine"). `emu.set_rom_directory` powers it up from another directory. Every method but `emu.status`,
+`emu.pause`, `emu.resume`, `emu.reset` with `power`, `emu.set_rom_directory` and
+`memory.list_regions` answers `no_machine` until it is.
 
 A run ends at an instruction boundary, where the 6502's registers are whole, never inside an
 instruction or an interrupt's entry. Time is counted in cycles of the 6502's 1 MHz clock from
@@ -250,6 +252,17 @@ parameters and answer `{}`.
 
 `petmcp-cli` has no run of its own. It runs only on request. There, these only set what
 `emu.status` says.
+
+### `emu.set_rom_directory`
+
+| Param | Meaning |
+|---|---|
+| `path` | A directory holding the ROMs under the names VICE gives them. |
+
+Reads the ROMs from `path` from now on, and powers the PET up with them, as `emu.reset` with
+`power` does. Answers `{}`. On failure the directory and the PET stay as they were.
+
+Errors: `power_up_failed`, `bad_request`.
 
 ### `emu.reset`
 
@@ -392,3 +405,74 @@ punctuation as themselves, the graphics as the nearest Unicode character. Revers
 marked.
 
 Errors: `no_machine`.
+
+### `input.type`
+
+| Param | Meaning |
+|---|---|
+| `text` | What to type, UTF-8. |
+| `hold_frames`, `gap_frames` | Frames each key is held, and let go before the next: 1 to 600, 2 each when left out. |
+
+Types `text` on the PET's keyboard, a key at a time, running the PET as it goes; the editor scans
+the keyboard once a frame and takes a key again only after it has seen it up. Answers as
+`emu.run_frames` does, with `keystrokes`, the keys typed.
+
+- A letter of either case is the unshifted key, which makes a capital in the graphics set the
+  3032 starts in ([0015](../decisions/0015-letters-keep-the-pets-shift.md)).
+- Digits, punctuation and space are their keys; `"` is a key of its own on the PET. `←`, `↑` and
+  `π` are the PET's own, and `_` and `^` stand for `←` and `↑`. `\n` and `\r` are RETURN.
+- In braces, the keys no character names: `{RETURN}`, `{CLR}`, `{HOME}`, `{DEL}`, `{INST}`,
+  `{UP}`, `{DOWN}`, `{LEFT}`, `{RIGHT}`, `{RVS}`, `{OFF}`, `{STOP}`, `{RUN}`, `{PI}`, and any key
+  with SHIFT held over it, `{SHIFT-A}`.
+
+```json
+{"id":9,"method":"input.type","params":{"text":"print 2+2\n"}}
+{"id":9,"ok":true,"result":{"reason":"completed","cycles_executed":665599,"frames_executed":40,"keystrokes":10}}
+```
+
+Errors: `no_machine`, `invalid_input`, `bad_request`.
+
+### `input.press`
+
+| Param | Meaning |
+|---|---|
+| `key` | The key's name: a character printed on it (`A`, `7`, `"`), or `RETURN`, `SPACE`, `LEFT_SHIFT`, `RIGHT_SHIFT`, `RVS`, `STOP`, `HOME`, `DEL`, `CRSR_DOWN`, `CRSR_RIGHT`, `LEFT_ARROW`, `UP_ARROW`. |
+| `shift` | Hold the left SHIFT with it; `false` when left out. |
+| `frames` | Frames to hold it, 1 to 600; 2 when left out. It is then let go for 2. |
+
+Runs the PET as it goes, and answers as `emu.run_frames` does.
+
+Errors: `no_machine`, `invalid_input`, `bad_request`.
+
+### `input.set`, `input.clear`, `input.get_state`
+
+`input.set` holds a key down (`down` true) or lets it go, by `key` as `input.press` names it, until
+told otherwise; `input.clear` lets every such key go. Neither runs the PET; both answer `{}`.
+`input.get_state` answers `held`, the names of the keys `input.set` holds, and `matrix`, the ten
+rows of the keyboard's matrix as numbers, a set bit a key down.
+
+The desktop application's keyboard holds keys of its own beside these; the PET sees both.
+
+Errors: `no_machine`, `invalid_input`, `bad_request`.
+
+### `program.load`
+
+| Param | Meaning |
+|---|---|
+| `path` | A `.prg` file: its load address, little-endian, then its bytes. |
+| `data_hex` | The same bytes, two hex digits each, instead of a file. |
+| `run` | Run it too; `false` when left out. |
+
+Give `path` or `data_hex`. Puts the program into RAM at its load address as BASIC's LOAD does, and
+sets where BASIC's variables begin after it, so that RUN runs it. With `run`, types `RUN` for a
+program at `$0401`, BASIC's start, and `SYS` to its first byte for any other, into the kernal's
+keyboard buffer: the PET runs it as it next runs from READY. Load it from READY: before the PET
+has booted, the kernal clears what was loaded.
+
+```json
+{"id":10,"ok":true,"result":{"start":1025,"end":1522,"typed":"RUN"}}
+```
+
+`end` is one past its last byte; `typed` is what was typed, with `run` only.
+
+Errors: `no_machine`, `load_failed`, `bad_request`.

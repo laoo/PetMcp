@@ -127,6 +127,14 @@ transcripts ([spec/control-protocol.md](spec/control-protocol.md#transcripts)).
 whatever the display's refresh rate. The sound goes to an SDL audio stream at the machine's rate,
 with the dynamic rate control PGMEmu has.
 
+**Keyboard and screen:** the host's keyboard reaches the PET by symbol
+([0014](decisions/0014-keyboard-by-symbol.md), [0015](decisions/0015-letters-keep-the-pets-shift.md)),
+its keys held as a second layer of the matrix beside the keys the protocol holds, while the screen
+window has the focus; the Input window shows and rebinds the keys that make no character. The
+screen is drawn in the phosphor's colour and the dots' shape the Display menu chooses
+([0016](decisions/0016-the-screen-is-green-and-square.md)). A `.prg` opened, dropped on the window
+or named on the command line is loaded and run through `program.load`, once the PET is at READY.
+
 **Debugger windows:** the 6502's registers and disassembly, memory, the VIA's and PIAs'
 registers, the YM2149Fs, and the IEEE-488 bus.
 

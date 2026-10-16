@@ -15,20 +15,6 @@ namespace
 /// Twenty seconds of the PET's time.
 constexpr std::uint64_t DEFAULT_TIMEOUT = 20'000'000;
 
-Json answer( machine::RunResult const& result )
-{
-  char const* reason = "completed";
-  if ( result.reason == machine::StopReason::CONDITION )
-  {
-    reason = "condition_met";
-  }
-  else if ( result.reason == machine::StopReason::TIMEOUT )
-  {
-    reason = "timeout";
-  }
-  return Json{ { "reason", reason }, { "cycles_executed", result.cycles }, { "frames_executed", result.frames } };
-}
-
 /// A run's `count`, which must be positive.
 std::expected<std::uint64_t, Error> countOf( Json const& params )
 {
@@ -41,6 +27,20 @@ std::expected<std::uint64_t, Error> countOf( Json const& params )
 }
 
 } // namespace
+
+Json runJson( machine::RunResult const& result )
+{
+  char const* reason = "completed";
+  if ( result.reason == machine::StopReason::CONDITION )
+  {
+    reason = "condition_met";
+  }
+  else if ( result.reason == machine::StopReason::TIMEOUT )
+  {
+    reason = "timeout";
+  }
+  return Json{ { "reason", reason }, { "cycles_executed", result.cycles }, { "frames_executed", result.frames } };
+}
 
 void addRunMethods( Dispatcher& dispatcher, Emulator& emulator )
 {
@@ -61,7 +61,7 @@ void addRunMethods( Dispatcher& dispatcher, Emulator& emulator )
         {
           return std::unexpected( count.error() );
         }
-        return answer( ( *machine )->runFrames( *count ) );
+        return runJson( ( *machine )->runFrames( *count ) );
       } );
 
   dispatcher.add( "emu.run_cycles",
@@ -79,7 +79,7 @@ void addRunMethods( Dispatcher& dispatcher, Emulator& emulator )
                     {
                       return std::unexpected( count.error() );
                     }
-                    return answer( ( *machine )->runCycles( *count ) );
+                    return runJson( ( *machine )->runCycles( *count ) );
                   } );
 
   dispatcher.add(
@@ -155,7 +155,7 @@ void addRunMethods( Dispatcher& dispatcher, Emulator& emulator )
           }
           return false;
         };
-        return answer( ( *machine )->runUntil( condition, timeout ) );
+        return runJson( ( *machine )->runUntil( condition, timeout ) );
       } );
 }
 

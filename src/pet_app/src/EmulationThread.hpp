@@ -43,6 +43,9 @@ public:
   /// `emu.pause` and `emu.resume` set. Requests are answered either way.
   [[nodiscard]] bool paused() const;
 
+  /// The PET keys the host's keyboard holds, applied before each frame.
+  void setHostKeys( machine::KeyMatrix const& keys );
+
   /// Copies the last complete picture into `out` if it is newer than
   /// `picturesSeen`, and updates that; false if there is none newer.
   bool takePicture( std::int64_t& picturesSeen, std::vector<std::uint8_t>& out );
@@ -57,6 +60,8 @@ private:
   void loop();
   /// Answers every request waiting, on the emulation thread.
   void serveRequests();
+  /// Hands the machine's picture on to takePicture(), if it has a new one.
+  void publishPicture();
 
   Emulator mEmulator;
   control::Dispatcher mDispatcher;
@@ -70,9 +75,17 @@ private:
   /// The emulator's paused(), as of the last time the thread looked.
   std::atomic<bool> mPaused{};
 
+  std::mutex mHostKeysMutex;
+  machine::KeyMatrix mHostKeys{};
+
   std::mutex mPictureMutex;
   std::vector<std::uint8_t> mPicture;
   std::int64_t mPicturesDrawn{ -1 };
+  /// The machine's count of pictures when one was last handed on, and the
+  /// power-up it was of: a power-up makes another machine, which counts
+  /// afresh.
+  std::int64_t mMachinePictures{ -1 };
+  std::uint64_t mPicturePowerUp{};
 
   std::thread mThread;
 };

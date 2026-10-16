@@ -3,6 +3,7 @@ add_executable( pet_app
   src/DisplaySettings.cpp
   src/EmulationThread.cpp
   src/GpuTexture.cpp
+  src/HostKeyboard.cpp
   src/Main.cpp
   src/ScreenRenderer.cpp )
 

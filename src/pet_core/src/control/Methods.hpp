@@ -21,6 +21,8 @@ void addRunMethods( Dispatcher& dispatcher, Emulator& emulator );
 void addMemoryMethods( Dispatcher& dispatcher, Emulator& emulator );
 void addCpuMethods( Dispatcher& dispatcher, Emulator& emulator );
 void addVideoMethods( Dispatcher& dispatcher, Emulator& emulator );
+void addInputMethods( Dispatcher& dispatcher, Emulator& emulator );
+void addProgramMethods( Dispatcher& dispatcher, Emulator& emulator );
 
 Error badRequest( std::string message );
 
@@ -29,6 +31,9 @@ Error noMachine( Emulator const& emulator );
 
 /// The emulator's machine, or the `no_machine` error.
 std::expected<machine::Machine*, Error> machineOf( Emulator& emulator );
+
+/// What a run answers: why it stopped, and the cycles and frames it took.
+Json runJson( machine::RunResult const& result );
 
 /// One parameter of a method, as its schema describes it: a JSON Schema type
 /// ("string", "integer", "boolean", "object", "array"), and what it means.

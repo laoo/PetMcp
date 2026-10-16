@@ -1,8 +1,10 @@
 add_executable( pet_tests
   VersionTest.cpp
   control/DispatcherTest.cpp
+  control/ProgramsAndInputTest.cpp
   cpu/Cpu6502SingleStepTest.cpp
   cpu/Cpu6502Test.cpp
+  machine/KeyboardTest.cpp
   machine/MachineTest.cpp
   machine/TraceTest.cpp
   machine/Via6522Test.cpp

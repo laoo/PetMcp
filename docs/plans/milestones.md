@@ -17,21 +17,6 @@ A session takes work by saying *build M<n> of docs/plans/milestones.md*. Every t
 Every milestone ends with an **exit** condition that can be checked without a person looking at
 a screen.
 
-## M3: Keyboard, programs and the desktop
-
-- The keyboard matrix; `input.press`, `input.set`, `input.clear`, `input.get_state` by PET key
-  name, and `input.type` for text ([0014](../decisions/0014-keyboard-by-symbol.md)).
-- `program.load`: a `.prg` put into memory at its load address, BASIC's pointers set as LOAD
-  sets them (`machine::loadProgram`), and run when asked (`RUN` for BASIC, a `SYS` otherwise,
-  typed into the keyboard buffer by `machine::queueKeys`).
-- The desktop: frames run at 60.1 Hz, the host keyboard mapped by symbol, the Input window and
-  its bindings, the monitor's phosphor colour and pixel shape in the Display menu, File > Open
-  and drag-and-drop for a `.prg`.
-- The `kbscan` program of `../PETTest` as a test.
-
-**Exit:** a transcript types `PRINT 2+2` and a return, runs a few frames, and reads ` 4` on the
-screen; another loads a `.prg` and runs it.
-
 ## M4: The debugger and save states
 
 - `debug.breakpoint.*`, `debug.watchpoint.*`, `debug.trace`; a run stops at them, and the

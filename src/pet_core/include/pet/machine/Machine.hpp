@@ -1,5 +1,6 @@
 #pragma once
 
+#include "pet/machine/Keyboard.hpp"
 #include "pet/machine/Roms.hpp"
 
 #include <cstdint>
@@ -82,6 +83,16 @@ public:
   /// Writes RAM or video RAM as a debugger does: no bus cycle is made. False
   /// where `address` is neither.
   bool poke( std::uint16_t address, std::uint8_t value );
+
+  /// Holds `key` down, or lets it go: the keys the control protocol holds.
+  void setKey( PetKey key, bool down );
+  /// Lets go every key setKey() holds.
+  void releaseKeys();
+  /// The keys setKey() holds.
+  [[nodiscard]] KeyMatrix heldKeys() const;
+  /// The keys the host's keyboard holds, which the PET sees together with
+  /// those setKey() holds.
+  void setHostKeys( KeyMatrix const& keys );
 
   [[nodiscard]] std::span<std::uint8_t const> ram() const;
   [[nodiscard]] std::span<std::uint8_t const> videoRam() const;

@@ -2,6 +2,7 @@
 
 #include "pet/machine/Machine.hpp"
 
+#include <cstdint>
 #include <expected>
 #include <filesystem>
 #include <memory>
@@ -39,9 +40,16 @@ public:
   /// failure the machine that ran runs on, and the reason is answered.
   std::expected<void, std::string> powerUp();
 
+  /// Reads the ROMs from `directory` from now on, and powers the PET up with
+  /// them. On failure the directory and the machine stay as they were.
+  std::expected<void, std::string> setRomDirectory( std::filesystem::path const& directory );
+
   /// The PET, or null when it could not be powered up.
   [[nodiscard]] machine::Machine* machine();
   [[nodiscard]] machine::Machine const* machine() const;
+  /// How many times a PET has been powered up: each is a new machine, whose
+  /// counts begin afresh.
+  [[nodiscard]] std::uint64_t powerUps() const;
   /// Why there is no machine; empty when there is one.
   [[nodiscard]] std::string const& powerUpError() const;
 
@@ -55,6 +63,7 @@ private:
   Settings mSettings;
   bool mPaused{};
   std::unique_ptr<machine::Machine> mMachine;
+  std::uint64_t mPowerUps{};
   std::string mPowerUpError;
 };
 

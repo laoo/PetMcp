@@ -19,7 +19,6 @@ namespace
 
 constexpr std::size_t RAM_SIZE = 0x8000;
 constexpr std::size_t VIDEO_RAM_SIZE = 0x400;
-constexpr unsigned KEYBOARD_ROWS = 10;
 
 /// RAM as VICE powers it up with its default settings (ram.c, ram_init with
 /// RAMInitStartValue 0, RAMInitValueOffset 2, RAMInitValueInvert 4,
@@ -80,7 +79,11 @@ struct Machine::Board final : cpu::Bus
       // The row is the output register's low nibble, through a 4-to-10
       // decoder; rows past 9 select nothing.
       unsigned const row = board.pia1.snapshot().portA & 0x0fU;
-      return row < KEYBOARD_ROWS ? static_cast<std::uint8_t>( ~board.keys.at( row ) ) : std::uint8_t{ 0xff };
+      if ( row >= KEYBOARD_ROWS )
+      {
+        return 0xff;
+      }
+      return static_cast<std::uint8_t>( ~( board.keys.at( row ) | board.hostKeys.at( row ) ) );
     }
 
     void storePa( std::uint8_t /*byte*/ ) override {}
@@ -320,8 +323,9 @@ struct Machine::Board final : cpu::Bus
   Roms roms;
   std::vector<std::uint8_t> ram;
   std::vector<std::uint8_t> videoRam;
-  /// The keys held, a bit a key, by row of the matrix, as VICE's keyarr.
-  std::array<std::uint8_t, KEYBOARD_ROWS> keys{};
+  /// The keys the protocol and the host hold.
+  KeyMatrix keys{};
+  KeyMatrix hostKeys{};
   Pia1Ports pia1Ports;
   Pia2Ports pia2Ports;
   ViaPortsOfPet viaPorts;
@@ -422,6 +426,28 @@ bool Machine::poke( std::uint16_t address, std::uint8_t value )
     return true;
   }
   return false;
+}
+
+void Machine::setKey( PetKey key, bool down )
+{
+  std::uint8_t& row = mBoard->keys.at( key.row );
+  auto const bit = static_cast<std::uint8_t>( 1U << key.column );
+  row = down ? static_cast<std::uint8_t>( row | bit ) : static_cast<std::uint8_t>( row & ~bit );
+}
+
+void Machine::releaseKeys()
+{
+  mBoard->keys.fill( 0 );
+}
+
+KeyMatrix Machine::heldKeys() const
+{
+  return mBoard->keys;
+}
+
+void Machine::setHostKeys( KeyMatrix const& keys )
+{
+  mBoard->hostKeys = keys;
 }
 
 std::span<std::uint8_t const> Machine::ram() const
