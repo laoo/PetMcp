@@ -8,6 +8,7 @@
 #include <expected>
 #include <functional>
 #include <memory>
+#include <optional>
 #include <span>
 #include <string>
 #include <vector>
@@ -71,6 +72,28 @@ struct RunResult
   WatchHit watchpoint{};
 };
 
+/// One stereo sample of the PET's sound, at Machine::AUDIO_RATE.
+struct AudioFrame
+{
+  std::int16_t left{};
+  std::int16_t right{};
+};
+
+/// The expansion board's state as a debugger shows it.
+struct BoardState
+{
+  std::array<std::array<std::uint8_t, 16>, 2> registers{};
+  /// The register each chip's address latch selects.
+  std::array<std::uint8_t, 2> latches{};
+  /// The 4 KB banks of RAM0 and RAM1 at $A000 and $B000.
+  std::array<unsigned, 2> banks{};
+  /// Whether the video draws the ROM's characters, else the RAM's buffer.
+  bool romCharacters{};
+  unsigned shownBuffer{};
+  /// Each chip at 2 MHz, its divider off, or at 1 MHz.
+  std::array<bool, 2> fullClock{};
+};
+
 /// A PIA's registers as written, and its control lines' outputs.
 struct PiaState
 {
@@ -120,8 +143,26 @@ class Machine
 {
 public:
   /// A machine powered up with `roms`: RAM in VICE's pattern, every chip as
-  /// after power-up, the 6502 about to run its reset sequence.
-  explicit Machine( Roms roms );
+  /// after power-up, the 6502 about to run its reset sequence. With
+  /// `expansionBoard`, the owner's board fills the $9000-$BFFF sockets
+  /// (docs/hardware/expansion-board.md); without, they are empty.
+  explicit Machine( Roms roms, bool expansionBoard = true );
+
+  static constexpr unsigned AUDIO_RATE = 48000;
+
+  /// The sound the last run made.
+  [[nodiscard]] std::span<AudioFrame const> audio() const;
+  /// Keeps every frame of sound made from now on, until stopCapture() hands
+  /// them over.
+  void startCapture();
+  [[nodiscard]] bool capturing() const;
+  std::vector<AudioFrame> stopCapture();
+
+  /// The expansion board's state; nothing without the board.
+  [[nodiscard]] std::optional<BoardState> board() const;
+  /// The board's memories: 0 and 1 its 512 KB RAMs, 2 its 4 KB of character
+  /// RAM, both buffers. Empty without the board.
+  [[nodiscard]] std::span<std::uint8_t const> boardMemory( unsigned which ) const;
   ~Machine();
 
   Machine( Machine const& ) = delete;

@@ -4,6 +4,7 @@ add_executable( pet_tests
   control/ProgramsAndInputTest.cpp
   cpu/Cpu6502SingleStepTest.cpp
   cpu/Cpu6502Test.cpp
+  machine/BoardAndSoundTest.cpp
   machine/KeyboardTest.cpp
   machine/MachineTest.cpp
   machine/StateAndDebugTest.cpp

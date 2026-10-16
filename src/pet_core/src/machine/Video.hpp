@@ -31,9 +31,11 @@ public:
   Video( std::span<std::uint8_t const> characters, std::span<std::uint8_t const> videoRam );
 
   /// The beam's work in cycle `now`, after the 6502's access of it.
-  /// `textSet` is VIA CA2, high for the text set; the glyph read in a cycle
-  /// uses the set chosen before that cycle's access, as TangPet's does.
-  Event cycle( Clock now, bool textSet );
+  /// `textSet` is VIA CA2, high for the text set; `glyphs` are the expansion
+  /// board's character RAM, 2 KB laid out as the ROM is, or empty for the
+  /// ROM. The glyph read in a cycle uses the set and the source chosen before
+  /// that cycle's access, as TangPet's does.
+  Event cycle( Clock now, bool textSet, std::span<std::uint8_t const> glyphs );
 
   /// Whether the beam is in the vertical blank (VIA PB5 low).
   [[nodiscard]] bool offScreen() const;
@@ -87,6 +89,7 @@ private:
   bool mDisplayEnabled{};
   bool mOffScreen{};
   bool mTextSet{};
+  std::span<std::uint8_t const> mGlyphs;
 };
 
 } // namespace pet::machine

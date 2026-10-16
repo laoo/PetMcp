@@ -1,5 +1,6 @@
 add_executable( pet_app
   src/Application.cpp
+  src/AudioOutput.cpp
   src/DebuggerWindows.cpp
   src/DisplaySettings.cpp
   src/EmulationThread.cpp

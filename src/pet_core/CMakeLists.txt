@@ -3,6 +3,7 @@ add_library( pet_core
   src/PortabilityChecks.cpp
   src/Version.cpp
   src/control/Dispatcher.cpp
+  src/control/AudioMethods.cpp
   src/control/CpuMethods.cpp
   src/control/DebugMethods.cpp
   src/control/EmuMethods.cpp
@@ -15,15 +16,18 @@ add_library( pet_core
   src/control/VideoMethods.cpp
   src/cpu/Cpu6502.cpp
   src/cpu/Disassembler.cpp
+  src/machine/ExpansionBoard.cpp
   src/machine/Keyboard.cpp
   src/machine/Machine.cpp
   src/machine/Pia6520.cpp
   src/machine/Programs.cpp
   src/machine/Roms.cpp
   src/machine/Screen.cpp
+  src/machine/Sound.cpp
   src/machine/TraceHistory.cpp
   src/machine/Via6522.cpp
-  src/machine/Video.cpp )
+  src/machine/Video.cpp
+  src/machine/Ym2149.cpp )
 
 add_library( pet::core ALIAS pet_core )
 

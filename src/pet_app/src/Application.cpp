@@ -6,6 +6,7 @@
 #include <imgui.h>
 #include <imgui_impl_sdl3.h>
 #include <imgui_impl_sdlgpu3.h>
+#include <spdlog/fmt/fmt.h>
 #include <spdlog/spdlog.h>
 
 #include <algorithm>
@@ -111,8 +112,8 @@ Application::Application( SDL_Window* window, SDL_GPUDevice* device, Settings se
       mScreen{ std::make_unique<GpuTexture>( device,
                                              static_cast<std::uint32_t>( video::SCREEN_WIDTH ),
                                              static_cast<std::uint32_t>( video::SCREEN_HEIGHT ) ) },
-      mRawFrame{ blankScreen() }, mFrame{ blankScreen() },
-      mEmulation{ std::make_unique<EmulationThread>( std::move( settings ) ) },
+      mRawFrame{ blankScreen() }, mFrame{ blankScreen() }, mAudio{ AudioOutput::open() },
+      mEmulation{ std::make_unique<EmulationThread>( std::move( settings ), mAudio.get() ) },
       mRenderer{ std::make_unique<ScreenRenderer>( device ) }
 {
   IMGUI_CHECKVERSION();
@@ -193,7 +194,9 @@ Application::~Application()
   mMcpHttp.reset();
   mMcp.reset();
   mLineServer.reset();
+  // The emulation thread feeds the audio stream: it goes first.
   mEmulation.reset();
+  mAudio.reset();
   SDL_ReleaseWindowFromGPUDevice( mDevice, mWindow );
   SDL_DestroyGPUDevice( mDevice );
   SDL_DestroyWindow( mWindow );
@@ -413,6 +416,7 @@ void Application::drawInterface()
   mMemory->draw( mShowMemory );
   mIo->draw( mShowIo );
   mHistory->draw( mShowHistory );
+  drawSoundWindow();
 
   if ( mShowImguiDemo )
   {
@@ -476,6 +480,7 @@ void Application::drawMenuBar()
     ImGui::MenuItem( "History", nullptr, &mShowHistory );
     ImGui::MenuItem( "Memory", nullptr, &mShowMemory );
     ImGui::MenuItem( "I/O", nullptr, &mShowIo );
+    ImGui::MenuItem( "Sound", nullptr, &mShowSound );
     ImGui::Separator();
     ImGui::MenuItem( "ImGui demo", nullptr, &mShowImguiDemo );
     ImGui::EndMenu();
@@ -713,6 +718,74 @@ void Application::drawInputWindow()
         ImGui::Button( std::string{ name.empty() ? "." : name.substr( 0, 3 ) }.c_str(), ImVec2{ 36.0F, 0.0F } );
         ImGui::EndDisabled();
       }
+    }
+  }
+  ImGui::End();
+}
+
+void Application::drawSoundWindow()
+{
+  if ( !mShowSound )
+  {
+    return;
+  }
+  if ( ImGui::Begin( "Sound", &mShowSound ) )
+  {
+    ImGui::Text( "Output: %s", mAudio ? "default device" : "none" );
+    if ( mAudio )
+    {
+      ImGui::SameLine();
+      ImGui::Text( "(%.0f ms queued)", mAudio->queuedSeconds() * 1000.0 );
+    }
+    auto const response = request( "expansion.get_state" );
+    if ( response.at( "ok" ) != true )
+    {
+      ImGui::TextWrapped( "%s", response.at( "error" ).at( "message" ).get_ref<std::string const&>().c_str() );
+      ImGui::End();
+      return;
+    }
+    auto const& board = response.at( "result" );
+    ImGui::Text( "Characters: %s, buffer %u shown",
+                 board.at( "characters" ).get_ref<std::string const&>().c_str(),
+                 board.at( "shown_buffer" ).get<unsigned>() );
+    ImGui::Text( "Banks: RAM0 $%02X at $A000, RAM1 $%02X at $B000",
+                 board.at( "banks" ).at( 0 ).get<unsigned>(),
+                 board.at( "banks" ).at( 1 ).get<unsigned>() );
+    // The registers of both chips, side by side.
+    ImGuiTableFlags const flags =
+        ImGuiTableFlags_RowBg | ImGuiTableFlags_BordersInnerV | ImGuiTableFlags_SizingFixedFit;
+    if ( ImGui::BeginTable( "registers", 3, flags ) )
+    {
+      ImGui::TableSetupColumn( "Register" );
+      for ( unsigned chip = 0; chip < 2; ++chip )
+      {
+        auto const& state = board.at( "chips" ).at( chip );
+        std::string const heading = fmt::format( "AY{} {} MHz{}",
+                                                 chip + 1,
+                                                 state.at( "clock_hz" ).get<unsigned>() / 1'000'000,
+                                                 chip == 0 ? ", left" : ", right" );
+        ImGui::TableSetupColumn( heading.c_str() );
+      }
+      ImGui::TableHeadersRow();
+      static constexpr std::array<char const*, 16> NAMES{
+        "0 A fine",       "1 A coarse",    "2 B fine",  "3 B coarse", "4 C fine",   "5 C coarse",
+        "6 noise",        "7 mixer",       "8 A level", "9 B level",  "10 C level", "11 env. fine",
+        "12 env. coarse", "13 env. shape", "14 port A", "15 port B"
+      };
+      for ( unsigned reg = 0; reg < 16; ++reg )
+      {
+        ImGui::TableNextRow();
+        ImGui::TableNextColumn();
+        ImGui::TextUnformatted( NAMES.at( reg ) );
+        for ( unsigned chip = 0; chip < 2; ++chip )
+        {
+          auto const& state = board.at( "chips" ).at( chip );
+          ImGui::TableNextColumn();
+          bool const latched = state.at( "latch" ).get<unsigned>() == reg;
+          ImGui::Text( "%02X%s", state.at( "registers" ).at( reg ).get<unsigned>(), latched ? " <" : "" );
+        }
+      }
+      ImGui::EndTable();
     }
   }
   ImGui::End();

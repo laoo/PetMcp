@@ -35,6 +35,7 @@ Dispatcher::Dispatcher( Emulator& emulator )
   addProgramMethods( *this, emulator );
   addDebugMethods( *this, emulator );
   addStateMethods( *this, emulator );
+  addAudioMethods( *this, emulator );
 }
 
 Json Dispatcher::handle( Json const& request ) const

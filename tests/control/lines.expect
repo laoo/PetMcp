@@ -11,7 +11,7 @@
 {"id":18,"ok":true,"result":{"version":"devel","paused":true,"running":false,"error":"no ROM directory is given"}}
 {"id":19,"ok":true,"result":{}}
 {"id":20,"ok":true,"result":{"version":"devel","paused":false,"running":false,"error":"no ROM directory is given"}}
-{"id":21,"ok":true,"result":{"regions":[{"name":"CPU","size":65536,"writable":true},{"name":"RAM","size":32768,"writable":true},{"name":"VIDEO_RAM","size":1024,"writable":true},{"name":"BASIC_ROM","size":8192,"writable":false},{"name":"EDITOR_ROM","size":2048,"writable":false},{"name":"KERNAL_ROM","size":4096,"writable":false},{"name":"CHARACTER_ROM","size":2048,"writable":false}]}}
+{"id":21,"ok":true,"result":{"regions":[{"name":"CPU","size":65536,"writable":true},{"name":"RAM","size":32768,"writable":true},{"name":"VIDEO_RAM","size":1024,"writable":true},{"name":"BASIC_ROM","size":8192,"writable":false},{"name":"EDITOR_ROM","size":2048,"writable":false},{"name":"KERNAL_ROM","size":4096,"writable":false},{"name":"CHARACTER_ROM","size":2048,"writable":false},{"name":"EXPANSION_RAM0","size":524288,"writable":false},{"name":"EXPANSION_RAM1","size":524288,"writable":false},{"name":"CHARACTER_RAM","size":4096,"writable":false}]}}
 {"id":22,"ok":false,"error":{"code":"no_machine","message":"The PET is not running: no ROM directory is given"}}
 {"id":23,"ok":false,"error":{"code":"no_machine","message":"The PET is not running: no ROM directory is given"}}
 {"id":24,"ok":false,"error":{"code":"power_up_failed","message":"no ROM directory is given"}}

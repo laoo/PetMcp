@@ -23,7 +23,10 @@ enum class RegionKind : std::uint8_t
   BASIC_ROM,
   EDITOR_ROM,
   KERNAL_ROM,
-  CHARACTER_ROM
+  CHARACTER_ROM,
+  EXPANSION_RAM0,
+  EXPANSION_RAM1,
+  CHARACTER_RAM
 };
 
 struct Region
@@ -34,7 +37,7 @@ struct Region
   bool writable;
 };
 
-constexpr std::array<Region, 7> REGIONS{ {
+constexpr std::array<Region, 10> REGIONS{ {
     { .name = "CPU", .kind = RegionKind::CPU, .size = 0x10000, .writable = true },
     { .name = "RAM", .kind = RegionKind::RAM, .size = 0x8000, .writable = true },
     { .name = "VIDEO_RAM", .kind = RegionKind::VIDEO_RAM, .size = 0x400, .writable = true },
@@ -42,6 +45,9 @@ constexpr std::array<Region, 7> REGIONS{ {
     { .name = "EDITOR_ROM", .kind = RegionKind::EDITOR_ROM, .size = 0x800, .writable = false },
     { .name = "KERNAL_ROM", .kind = RegionKind::KERNAL_ROM, .size = 0x1000, .writable = false },
     { .name = "CHARACTER_ROM", .kind = RegionKind::CHARACTER_ROM, .size = 0x800, .writable = false },
+    { .name = "EXPANSION_RAM0", .kind = RegionKind::EXPANSION_RAM0, .size = 0x80000, .writable = false },
+    { .name = "EXPANSION_RAM1", .kind = RegionKind::EXPANSION_RAM1, .size = 0x80000, .writable = false },
+    { .name = "CHARACTER_RAM", .kind = RegionKind::CHARACTER_RAM, .size = 0x1000, .writable = false },
 } };
 
 /// The region `params` name, `CPU` when they name none.
@@ -99,6 +105,12 @@ std::uint8_t readByte( machine::Machine const& machine, RegionKind kind, std::ui
     return roms.kernal[offset];
   case RegionKind::CHARACTER_ROM:
     return roms.characters[offset];
+  case RegionKind::EXPANSION_RAM0:
+    return machine.boardMemory( 0 )[offset];
+  case RegionKind::EXPANSION_RAM1:
+    return machine.boardMemory( 1 )[offset];
+  case RegionKind::CHARACTER_RAM:
+    return machine.boardMemory( 2 )[offset];
   }
   return 0;
 }
@@ -195,6 +207,14 @@ void addMemoryMethods( Dispatcher& dispatcher, Emulator& emulator )
         if ( !range )
         {
           return std::unexpected( range.error() );
+        }
+        bool const onBoard = region->kind == RegionKind::EXPANSION_RAM0 || region->kind == RegionKind::EXPANSION_RAM1 ||
+                             region->kind == RegionKind::CHARACTER_RAM;
+        if ( onBoard && ( *machine )->boardMemory( 0 ).empty() )
+        {
+          return std::unexpected(
+              Error{ .code = "invalid_region",
+                     .message = fmt::format( "{}: the PET runs without the expansion board", region->name ) } );
         }
         std::string hex;
         hex.reserve( *size * 2 );

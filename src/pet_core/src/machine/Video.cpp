@@ -18,7 +18,7 @@ Video::Video( std::span<std::uint8_t const> characters, std::span<std::uint8_t c
   }
 }
 
-Video::Event Video::cycle( Clock now, bool textSet )
+Video::Event Video::cycle( Clock now, bool textSet, std::span<std::uint8_t const> glyphs )
 {
   Clock const position = inFrame( now );
   auto const line = static_cast<unsigned>( position / CYCLES_PER_LINE );
@@ -39,7 +39,7 @@ Video::Event Video::cycle( Clock now, bool textSet )
   {
     std::uint8_t const code = mVideoRam[( ( ( line / 8 ) * TEXT_COLUMNS ) + column ) & 0x3ffU];
     std::size_t const glyph = ( mTextSet ? 0x400U : 0U ) + ( ( code & 0x7fU ) * 8U ) + ( line & 7U );
-    std::uint8_t row = mCharacters[glyph];
+    std::uint8_t row = mGlyphs.empty() ? mCharacters[glyph] : mGlyphs[glyph];
     if ( ( code & 0x80U ) != 0 )
     {
       row = static_cast<std::uint8_t>( ~row );
@@ -50,8 +50,9 @@ Video::Event Video::cycle( Clock now, bool textSet )
       dots[bit] = static_cast<std::uint8_t>( ( row >> ( 7U - bit ) ) & 1U );
     }
   }
-  // The set chosen in this cycle's access reaches the next glyph.
+  // The set and the source chosen in this cycle's access reach the next glyph.
   mTextSet = textSet;
+  mGlyphs = glyphs;
 
   // The adjusted retrace alarm: off screen is what the display enable is at
   // that moment, which is on at the blank's start and off at its end.

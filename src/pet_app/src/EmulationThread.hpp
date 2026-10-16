@@ -1,5 +1,7 @@
 #pragma once
 
+#include "AudioOutput.hpp"
+
 #include "pet/Emulator.hpp"
 #include "pet/control/Dispatcher.hpp"
 
@@ -23,8 +25,9 @@ namespace pet::app
 class EmulationThread
 {
 public:
-  /// Starts the thread.
-  explicit EmulationThread( Settings settings );
+  /// Starts the thread. `audio`, if not null, is fed the sound, and must
+  /// outlive the thread.
+  EmulationThread( Settings settings, AudioOutput* audio );
   ~EmulationThread();
 
   EmulationThread( EmulationThread const& ) = delete;
@@ -68,6 +71,7 @@ private:
   Emulator mEmulator;
   control::Dispatcher mDispatcher;
   std::vector<control::Method> const mMethods;
+  AudioOutput* mAudio;
 
   std::mutex mMutex;
   std::condition_variable mWake;

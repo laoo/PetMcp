@@ -17,19 +17,6 @@ A session takes work by saying *build M<n> of docs/plans/milestones.md*. Every t
 Every milestone ends with an **exit** condition that can be checked without a person looking at
 a screen.
 
-## M5: Sound and the expansion board
-
-- VIA CB2 sound, as VICE's `petsound.c` makes it.
-- Two YM2149Fs, with register read-back, 32-step envelopes and the YM's levels, at 2 or 1 MHz.
-- The expansion board as [hardware/expansion-board.md](../hardware/expansion-board.md)
-  specifies: decoding, the character RAM shown by the video, the 512 KB RAMs through their
-  windows.
-- Audio output in the desktop; `audio.capture_start`, `audio.capture_stop`; a sound window with
-  the YM2149Fs' registers.
-
-**Exit:** tests of the board's decoding, banking and character source after a reset; a WAV of a
-known tone sequence on each chip matches the expected frequencies and levels.
-
 ## M6: IEEE-488 and the SD2PET
 
 - The bus: data and handshake lines as the AND of both ends, wired to PIA2 and the VIA as VICE

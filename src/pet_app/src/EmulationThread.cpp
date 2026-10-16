@@ -30,8 +30,8 @@ control::Json shuttingDown()
 
 } // namespace
 
-EmulationThread::EmulationThread( Settings settings )
-    : mEmulator{ std::move( settings ) }, mDispatcher{ mEmulator }, mMethods{ mDispatcher.methods() },
+EmulationThread::EmulationThread( Settings settings, AudioOutput* audio )
+    : mEmulator{ std::move( settings ) }, mDispatcher{ mEmulator }, mMethods{ mDispatcher.methods() }, mAudio{ audio },
       mThread{ [this] { loop(); } }
 {
 }
@@ -85,6 +85,10 @@ void EmulationThread::runFrame( machine::Machine& machine )
     machine.setHostKeys( mHostKeys );
   }
   machine::RunResult const run = machine.runFrames( 1 );
+  if ( mAudio != nullptr )
+  {
+    mAudio->push( machine.audio(), machine::Machine::AUDIO_RATE );
+  }
   if ( run.reason == machine::StopReason::BREAKPOINT || run.reason == machine::StopReason::WATCHPOINT )
   {
     // The window stops where the debugger asked, as a client's run would;
@@ -157,6 +161,11 @@ void EmulationThread::loop()
       }
     }
     bool const paused = mEmulator.paused();
+    if ( paused && !mPaused.exchange( true ) && mAudio != nullptr )
+    {
+      // So that sound resumes at once, not after what was queued.
+      mAudio->clear();
+    }
     mPaused = paused;
 
     // The host's clock paces the emulation, so that it runs at the PET's

@@ -20,6 +20,8 @@ struct Settings
   std::filesystem::path romDirectory;
   /// The directory that stands for the SD2PET's SD card.
   std::filesystem::path cardDirectory;
+  /// Whether the owner's expansion board fills the $9000-$BFFF sockets.
+  bool expansionBoard{ true };
   /// Where `state.save` and `state.load` keep save states named without a
   /// directory, and `state.list` looks; the working directory when empty.
   std::filesystem::path stateDirectory;

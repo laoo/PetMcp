@@ -214,6 +214,10 @@ A request that failed:
 | `invalid_input` | An `input.` method was given a key name, or a text, the PET's keyboard has no key for. |
 | `load_failed` | `program.load` could not read the file, or the program is shorter than its address or does not fit in RAM. |
 | `state_failed` | A state file could not be written or read. |
+| `capture_running` | `audio.capture_start` while a capture is running. |
+| `capture_not_running` | `audio.capture_stop` with no capture running. |
+| `capture_failed` | The capture's WAV could not be written. |
+| `no_expansion` | `expansion.get_state` while the PET runs without the expansion board (`--no-expansion`). |
 | `state_mismatch` | A state file is not a PET state, is of another build's layout, or of a PET with other ROMs. |
 | `invalid_region` | No memory region of that name, or `memory.write` was given one it cannot write: a ROM. |
 | `invalid_range` | The bytes asked for, or given to `memory.write`, run past the end of the region, or past RAM and video RAM in CPU addresses. |
@@ -323,6 +327,11 @@ Takes no parameters. Answers `regions`, each `{"name", "size", "writable"}`.
 | `VIDEO_RAM` | 1 KB at `$8000`, also seen at `$8400`. |
 | `BASIC_ROM`, `EDITOR_ROM`, `KERNAL_ROM` | 8 KB at `$C000`, 2 KB at `$E000`, 4 KB at `$F000`. |
 | `CHARACTER_ROM` | The character generator, 2 KB, which only the video reads: the graphics set, then the text set. |
+| `EXPANSION_RAM0`, `EXPANSION_RAM1` | The expansion board's two 512 KB RAMs, whole, whichever 4 KB bank `$A000` and `$B000` show. Read only here; the 6502 writes them through their windows. |
+| `CHARACTER_RAM` | The expansion board's 4 KB of character RAM, both 2 KB buffers, buffer 0 first. |
+
+The expansion board's regions exist while the PET runs with the board; without it, reading one
+answers `invalid_region`.
 
 ### `memory.read`
 
@@ -616,3 +625,29 @@ with `state_mismatch`, and the PET runs on as it was. Loading a state, then runn
 the frames and memory that followed when it was saved.
 
 Errors: `no_machine`, `state_failed`, `state_mismatch`, `bad_request`.
+
+### `audio.capture_start`, `audio.capture_stop`
+
+`audio.capture_start` keeps every frame of the PET's sound from then on, made by any run, and
+answers `{}`. `audio.capture_stop` takes `path`, ends the capture and writes what it kept as a WAV,
+answering `{"path", "frames", "seconds"}`.
+
+The sound is stereo at 48 kHz, 16 bits. VIA CB2, filtered as VICE filters it (a low-pass at 8 kHz
+at the CPU's rate, a high-pass at 160 Hz), is on both channels; the expansion board's AY1 is on the
+left and AY2 on the right, DC-blocked at 10 Hz as the board's coupling capacitors do.
+
+Errors: `no_machine`, `capture_running`, `capture_not_running`, `capture_failed`, `bad_request`.
+
+### `expansion.get_state`
+
+Takes no parameters. Answers the expansion board's state
+([hardware/expansion-board.md](../hardware/expansion-board.md)):
+
+| Field | Meaning |
+|---|---|
+| `chips` | Two, AY1 then AY2: `registers`, the 16 as written, all 8 bits; `latch`, the register the address latch selects; `clock_hz`, 2,000,000 or 1,000,000 with the divider on. |
+| `banks` | The 4 KB banks of RAM0 at `$A000` and of RAM1 at `$B000`. |
+| `characters` | `rom` when the video draws the PET's own characters, `ram` when it draws the shown buffer. |
+| `shown_buffer` | The character buffer the video shows, 0 or 1; the 6502 sees the other at `$9800`. |
+
+Errors: `no_machine`, `no_expansion`.

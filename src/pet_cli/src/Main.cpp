@@ -128,6 +128,8 @@ int run( int argc, char** argv )
       ->check( CLI::ExistingDirectory );
   app.add_option( "--card-dir", settings.cardDirectory, "The directory that stands for the SD2PET's SD card" )
       ->check( CLI::ExistingDirectory );
+  bool noExpansion = false;
+  app.add_flag( "--no-expansion", noExpansion, "Leave the $9000-$BFFF sockets empty, without the expansion board" );
   app.add_option( "--state-dir",
                   settings.stateDirectory,
                   "Where state.save and state.load keep save states given by name; the working directory if not given" )
@@ -155,6 +157,7 @@ int run( int argc, char** argv )
       ->needs( transcriptOption );
 
   CLI11_PARSE( app, argc, argv );
+  settings.expansionBoard = !noExpansion;
 
   if ( !serverSpec.empty() && !serverSpec.starts_with( "tcp:" ) )
   {

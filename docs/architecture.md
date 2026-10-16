@@ -68,7 +68,9 @@ cycle. That is VICE's order, whose alarms for a clock run after the CPU's access
   reaches every chip its address selects, and a read of several is their AND. An address nothing
   answers gives the last byte the bus carried, except where the expansion board says otherwise.
 - **The expansion board** occupies `$9000`–`$BFFF` as
-  [hardware/expansion-board.md](hardware/expansion-board.md) specifies.
+  [hardware/expansion-board.md](hardware/expansion-board.md) specifies, unless the emulator is
+  started without it (`--no-expansion`), when the sockets are empty as on a plain 3032 and in
+  VICE. Its character RAM reaches the video with the same one-character delay as VIA CA2.
 - **Video.** The beam reads a character of video RAM and a row of its glyph in each cycle of a
   line's 40 visible ones, as the PET's logic and TangPet do, so that a write to video RAM, a
   change of VIA CA2's character set or of the expansion board's character source shows from the
@@ -76,8 +78,10 @@ cycle. That is VICE's order, whose alarms for a clock run after the CPU's access
 - **Keyboard.** The graphics keyboard's 10 × 8 matrix, scanned through PIA1. A client presses
   PET keys by name, or types text that becomes the presses that make it
   ([0014](decisions/0014-keyboard-by-symbol.md)).
-- **Sound.** VIA CB2, and the expansion board's two YM2149Fs, mixed to stereo at the machine's
-  own rate. Resampling to the host rate is the frontend's job.
+- **Sound.** VIA CB2, filtered as VICE's `petsound.c` filters it, and the expansion board's two
+  YM2149Fs, ported from the owner's `petay.c`, mixed to stereo at 48 kHz: CB2 on both channels,
+  AY1 on the left and AY2 on the right. The chips are clocked every cycle, by 2 or 1 of their own
+  clocks. The frontend hands the frames to SDL, which resamples them to the device's rate.
 - **IEEE-488 and the SD2PET.** The bus is its eight lines of data and its handshake lines, each
   the AND of what both ends drive. The SD2PET is a device on it at address 8, with the timing the
   owner measured on the real one and the DOS of the firmware it runs
@@ -137,8 +141,9 @@ or named on the command line is loaded and run through `program.load`, once the 
 
 **Debugger windows:** the 6502's registers, the code at its PC with its breakpoints, and stepping
 (CPU); the history of execution, scrolled through a page at a time and searched by PC and by
-disassembly, its length set there (History); the address space as hex (Memory); the PIAs' and the VIA's registers (I/O). The
-YM2149Fs and the IEEE-488 bus get theirs with M5 and M6. Every window asks through the protocol.
+disassembly, its length set there (History); the address space as hex (Memory); the PIAs' and the VIA's registers (I/O); the
+expansion board, its banks, its character source and both YM2149Fs' registers (Sound). The
+IEEE-488 bus gets its window with M6. Every window asks through the protocol.
 
 ## Save states
 

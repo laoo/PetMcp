@@ -1,7 +1,9 @@
 #include "pet/machine/Machine.hpp"
 
 #include "Clock.hpp"
+#include "ExpansionBoard.hpp"
 #include "Pia6520.hpp"
+#include "Sound.hpp"
 #include "StateArchive.hpp"
 #include "TraceHistory.hpp"
 #include "Via6522.hpp"
@@ -163,12 +165,41 @@ struct Machine::Board final : cpu::Bus
       board.textSet = state;
     }
 
-    void setCb2( bool /*state*/, Clock /*at*/ ) override {}
+    void setCb2( bool state, Clock /*at*/ ) override
+    {
+      board.sound.setCb2( state );
+    }
+
+    void storeAcr( std::uint8_t control ) override
+    {
+      acr = control;
+      board.sound.setActive( soundActive() );
+    }
+
+    void storeT2l( std::uint8_t latch ) override
+    {
+      t2Latch = latch;
+      board.sound.setActive( soundActive() );
+    }
+
+    /// petvia.c's SOUND_ACTIVE: no sound while the shift register shifts
+    /// out under a T2 whose latch is 0, which the real PET makes inaudibly
+    /// high and an emulator would make noise of.
+    [[nodiscard]] bool soundActive() const
+    {
+      unsigned const control = acr & 0x1cU;
+      bool const shiftedByT2 = control == 0x10 || control == 0x14;
+      return !shiftedByT2 || t2Latch != 0;
+    }
+
+    std::uint8_t acr{};
+    std::uint8_t t2Latch{};
   };
 
-  explicit Board( Roms romSet )
-      : roms{ std::move( romSet ) }, ram{ powerUpRam() }, videoRam{ powerUpVideoRam() }, pia1Ports{ *this },
-        viaPorts{ *this }, pia1{ pia1Ports }, pia2{ pia2Ports }, via{ viaPorts }, video{ roms.characters, videoRam }
+  Board( Roms romSet, bool withBoard )
+      : roms{ std::move( romSet ) }, ram{ powerUpRam() }, videoRam{ powerUpVideoRam() },
+        expansion{ withBoard ? std::make_unique<ExpansionBoard>() : nullptr }, pia1Ports{ *this }, viaPorts{ *this },
+        pia1{ pia1Ports }, pia2{ pia2Ports }, via{ viaPorts }, video{ roms.characters, videoRam }
   {
     // The chips' reset at power-up, at the clock the trace begins at.
     pia1.reset( 0 );
@@ -200,6 +231,10 @@ struct Machine::Board final : cpu::Bus
     else if ( address < 0x8800 )
     {
       videoRam[address & 0x3ffU] = value;
+    }
+    else if ( expansion && ExpansionBoard::decodes( address ) )
+    {
+      expansion->write( address, value );
     }
     else if ( ( address & 0xff00U ) == 0xe800 )
     {
@@ -262,6 +297,10 @@ struct Machine::Board final : cpu::Bus
     {
       return roms.kernal[address & 0x0fffU];
     }
+    if ( expansion && ExpansionBoard::decodes( address ) )
+    {
+      return expansion->read( address );
+    }
     if ( address >= 0xc000 && address < 0xe000 )
     {
       return roms.basic[address & 0x1fffU];
@@ -314,7 +353,7 @@ struct Machine::Board final : cpu::Bus
   void step()
   {
     cpu.tick( *this );
-    switch ( video.cycle( clock, textSet ) )
+    switch ( video.cycle( clock, textSet, expansion ? expansion->glyphs() : std::span<std::uint8_t const>{} ) )
     {
     case Video::Event::BLANK_BEGINS:
       pia1.signal( Pia6520::Line::CB1, false, clock );
@@ -330,6 +369,11 @@ struct Machine::Board final : cpu::Bus
       ++frame;
     }
     via.cycle( clock );
+    if ( expansion )
+    {
+      expansion->cycle();
+    }
+    sound.cycle( expansion.get() );
     cpu.setIrq( pia1.irq( clock ) || pia2.irq( clock ) || via.irq( clock ) );
     ++clock;
   }
@@ -381,6 +425,7 @@ struct Machine::Board final : cpu::Bus
     Clock const startClock = clock;
     std::uint64_t const startFrame = frame;
     watchHit.reset();
+    sound.frames().clear();
     RunResult result{ .reason = StopReason::TIMEOUT };
     for ( ;; )
     {
@@ -416,6 +461,11 @@ struct Machine::Board final : cpu::Bus
     result.cycles = clock - startClock;
     result.frames = frame - startFrame;
     lastRun = result;
+    if ( capturing )
+    {
+      auto const& made = sound.frames();
+      captured.insert( captured.end(), made.begin(), made.end() );
+    }
     return result;
   }
 
@@ -460,6 +510,11 @@ struct Machine::Board final : cpu::Bus
     archive.chunk( fourCc( "PIA2" ), 1, pia2 );
     archive.chunk( fourCc( "VIA " ), 1, via );
     archive.chunk( fourCc( "VID " ), 1, video );
+    archive.chunk( fourCc( "SND " ), 1, sound );
+    if ( expansion )
+    {
+      archive.chunk( fourCc( "XBRD" ), 1, *expansion );
+    }
   }
 
   [[nodiscard]] std::uint32_t romsCrc() const
@@ -476,6 +531,11 @@ struct Machine::Board final : cpu::Bus
   Roms roms;
   std::vector<std::uint8_t> ram;
   std::vector<std::uint8_t> videoRam;
+  /// The expansion board, or null for empty sockets.
+  std::unique_ptr<ExpansionBoard> expansion;
+  Sound sound;
+  bool capturing{};
+  std::vector<AudioFrame> captured;
   /// The keys the protocol and the host hold.
   KeyMatrix keys{};
   KeyMatrix hostKeys{};
@@ -516,7 +576,8 @@ void Machine::completed( RunResult& result )
   }
 }
 
-Machine::Machine( Roms roms ) : mBoard{ std::make_unique<Board>( std::move( roms ) ) }
+Machine::Machine( Roms roms, bool expansionBoard )
+    : mBoard{ std::make_unique<Board>( std::move( roms ), expansionBoard ) }
 {
   mBoard->owner = this;
   // The reset sequence runs from cycle 0, and its last cycle fetches the
@@ -684,6 +745,54 @@ IoState Machine::io() const
                                    .ifr = via.ifr,
                                    .ier = via.ier },
                   .irq = board.pia1.irq( last ) || board.pia2.irq( last ) || board.via.irq( last ) };
+}
+
+std::span<AudioFrame const> Machine::audio() const
+{
+  return mBoard->sound.frames();
+}
+
+void Machine::startCapture()
+{
+  mBoard->captured.clear();
+  mBoard->capturing = true;
+}
+
+bool Machine::capturing() const
+{
+  return mBoard->capturing;
+}
+
+std::vector<AudioFrame> Machine::stopCapture()
+{
+  mBoard->capturing = false;
+  return std::exchange( mBoard->captured, {} );
+}
+
+std::optional<BoardState> Machine::board() const
+{
+  ExpansionBoard const* const expansion = mBoard->expansion.get();
+  if ( expansion == nullptr )
+  {
+    return std::nullopt;
+  }
+  std::uint8_t const control = expansion->chip( 0 ).portB();
+  return BoardState{ .registers = { expansion->chip( 0 ).registers(), expansion->chip( 1 ).registers() },
+                     .latches = { expansion->chip( 0 ).selected(), expansion->chip( 1 ).selected() },
+                     .banks = { expansion->bank( 0 ), expansion->bank( 1 ) },
+                     .romCharacters = ( control & 0x02U ) != 0,
+                     .shownBuffer = control & 0x01U,
+                     .fullClock = { ( control & 0x04U ) != 0, ( control & 0x08U ) != 0 } };
+}
+
+std::span<std::uint8_t const> Machine::boardMemory( unsigned which ) const
+{
+  ExpansionBoard const* const expansion = mBoard->expansion.get();
+  if ( expansion == nullptr )
+  {
+    return {};
+  }
+  return which == 2 ? expansion->characterRam() : expansion->ram( which );
 }
 
 RunResult const& Machine::lastRun() const

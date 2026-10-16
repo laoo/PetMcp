@@ -27,6 +27,8 @@ int run( int argc, char** argv )
       ->check( CLI::ExistingDirectory );
   app.add_option( "--card-dir", settings.cardDirectory, "The directory that stands for the SD2PET's SD card" )
       ->check( CLI::ExistingDirectory );
+  bool noExpansion = false;
+  app.add_flag( "--no-expansion", noExpansion, "Leave the $9000-$BFFF sockets empty, without the expansion board" );
   app.add_option( "--state-dir", settings.stateDirectory, "Where save states given by name are kept" )
       ->check( CLI::ExistingDirectory );
   std::string server;
@@ -38,6 +40,7 @@ int run( int argc, char** argv )
   std::filesystem::path program;
   app.add_option( "program", program, "A .prg to load and run once the PET is ready" )->check( CLI::ExistingFile );
   CLI11_PARSE( app, argc, argv );
+  settings.expansionBoard = !noExpansion;
   std::uint16_t const linePort =
       server.empty() ? std::uint16_t{ 0 } : static_cast<std::uint16_t>( std::stoul( server.substr( 4 ) ) );
 

@@ -192,8 +192,12 @@ void MemoryWindow::draw( bool& open )
           mRequest( "memory.read", { { "address", first * bytesPerRow }, { "size", count * bytesPerRow } } ) );
       if ( read.is_null() )
       {
-        ImGui::TextUnformatted( "The PET is not running" );
-        break;
+        // As many rows as the clipper asked for, as it measures them.
+        for ( int row = 0; row < count; ++row )
+        {
+          ImGui::TextUnformatted( row == 0 ? "The PET is not running" : "" );
+        }
+        continue;
       }
       auto const& hex = read.at( "data_hex" ).get_ref<std::string const&>();
       for ( int row = 0; row < count; ++row )
@@ -331,11 +335,17 @@ void HistoryWindow::draw( bool& open )
       int const shown = clipper.DisplayEnd - clipper.DisplayStart;
       control::Json const rows =
           resultOf( mRequest( "debug.trace", { { "from", total - clipper.DisplayEnd }, { "count", shown } } ) );
-      if ( rows.is_null() )
+      control::Json const instructions = rows.is_null() ? control::Json::array() : rows.at( "instructions" );
+      // The PET runs on between the count and the rows, and a power-up or a
+      // shorter history may leave fewer than asked for: the rows the clipper
+      // asked for are submitted all the same, those missing empty, as it
+      // measures them.
+      for ( auto missing = static_cast<int>( instructions.size() ); missing < shown; ++missing )
       {
-        break;
+        ImGui::TableNextRow();
+        ImGui::TableNextColumn();
+        ImGui::TextUnformatted( "" );
       }
-      auto const& instructions = rows.at( "instructions" );
       for ( auto entry = instructions.rbegin(); entry != instructions.rend(); ++entry )
       {
         control::Json const& row = *entry;

@@ -72,3 +72,10 @@ as for the ROM. The video reads the RAM at the same moment of each character as 
 
 The character RAM and both 512 KB RAMs hold zeros at power-up, as TangPet's do; the character
 RAM is not copied from the ROM.
+
+## Reset
+
+The emulator resets the YM2149Fs at power-up only: the PET's reset line leaves their registers,
+and so the banks, the character source and the sound, as they were. The board this one replaces
+had its chips' /RESET on an RC network (the owner's VICE `petay.c`); whether this one does is an
+[open question](../open-questions.md).

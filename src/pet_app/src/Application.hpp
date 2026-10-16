@@ -86,6 +86,7 @@ private:
   void drawScreenWindow();
   void drawStatusWindow();
   void drawInputWindow();
+  void drawSoundWindow();
 
   /// Uploads what changed, then renders the interface into the swapchain.
   void renderFrame();
@@ -97,6 +98,9 @@ private:
   std::vector<std::uint8_t> mRawFrame;
   std::vector<std::uint8_t> mFrame;
   bool mFrameChanged{ true };
+  /// Null when no audio device could be opened: the emulation then runs
+  /// silent, paced by the clock alone.
+  std::unique_ptr<AudioOutput> mAudio;
   std::unique_ptr<EmulationThread> mEmulation;
   std::unique_ptr<server::TcpLineServer> mLineServer;
   std::unique_ptr<server::McpServer> mMcp;
@@ -111,6 +115,7 @@ private:
   bool mShowCpu{};
   bool mShowMemory{};
   bool mShowIo{};
+  bool mShowSound{};
   /// Where the display settings, the keyboard map and the application's own
   /// settings are kept, beside imgui.ini; empty when they are not kept.
   std::filesystem::path mDisplayPath;

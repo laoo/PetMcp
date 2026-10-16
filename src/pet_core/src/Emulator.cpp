@@ -24,7 +24,7 @@ std::expected<void, std::string> Emulator::powerUp()
   {
     return std::unexpected( roms.error() );
   }
-  mMachine = std::make_unique<machine::Machine>( std::move( *roms ) );
+  mMachine = std::make_unique<machine::Machine>( std::move( *roms ), mSettings.expansionBoard );
   mMachine->setTraceCycles( mTraceCycles );
   ++mPowerUps;
   mPowerUpError.clear();

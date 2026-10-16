@@ -25,6 +25,7 @@ void addInputMethods( Dispatcher& dispatcher, Emulator& emulator );
 void addProgramMethods( Dispatcher& dispatcher, Emulator& emulator );
 void addDebugMethods( Dispatcher& dispatcher, Emulator& emulator );
 void addStateMethods( Dispatcher& dispatcher, Emulator& emulator );
+void addAudioMethods( Dispatcher& dispatcher, Emulator& emulator );
 
 Error badRequest( std::string message );
 

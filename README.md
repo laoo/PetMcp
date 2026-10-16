@@ -28,7 +28,9 @@ serves.
 build/release/src/pet_app/petmcp --rom-dir /path/to/vice/data/PET --card-dir /path/to/card
 ```
 
-`--card-dir` is the directory that stands for the SD2PET's SD card. A `.prg` named after the
+`--card-dir` is the directory that stands for the SD2PET's SD card. The owner's expansion board,
+two YM2149Fs, character RAM and 1 MB of banked RAM, fills the `$9000`-`$BFFF` sockets unless
+`--no-expansion` leaves them empty. A `.prg` named after the
 options, opened with File > Open program or dropped on the window is loaded and run once the PET is
 at READY. The ROM directory can also be chosen with File > Choose ROM directory, and is then kept.
 

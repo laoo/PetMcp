@@ -36,3 +36,10 @@ On the hardware, `CD` sent through `PRINT#15` and followed by `LOAD"P",8` hung a
 opened with the command as its name, it worked (`../PETTest/README.md` §6). NODISKEMU's code
 does not explain it. Is it the secondary address, the first access after `CD`, or how `CD` was
 sent?
+
+## Whether the PET's reset reaches the expansion board
+
+The emulator resets the board's YM2149Fs at power-up only, as the board before it did, whose
+chips' /RESET came from an RC network ([hardware/expansion-board.md](hardware/expansion-board.md)).
+If this board takes the PET's reset, a reset also returns the banks to `$7F`, the characters to
+the ROM and the chips to 2 MHz, and silences them. The board's schematic answers it.
